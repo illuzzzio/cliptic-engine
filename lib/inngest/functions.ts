@@ -7,8 +7,7 @@ import fs from "fs";
 import path from "path";
 
 export const uploadVideoToS3 = inngest.createFunction(
-  { id: "upload-video-to-s3" },
-  { event: "video.process" },
+  { id: "upload-video-to-s3", event: "video.process" },
   async ({ event, step }) => {
     const { projectId, filePath, fileName, mimeType } = event.data;
 
