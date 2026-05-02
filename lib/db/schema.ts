@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk User ID
@@ -15,8 +15,10 @@ export const projects = pgTable("projects", {
   title: text("title").notNull(),
   status: text("status").notNull().default("uploading"), // uploading, processing, completed, failed
   progress: text("progress").notNull().default("0"), // percentage
-  videoKey: text("video_key"), // S3 object key
-  videoUrl: text("video_url"), // Signed URL
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  videoKey: text('video_key'),
+  videoUrl: text('video_url'),
+  transcript: text('transcript'),
+  captions: jsonb('captions'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

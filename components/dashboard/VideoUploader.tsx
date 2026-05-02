@@ -4,14 +4,18 @@ import React, { useState, useRef, useEffect } from "react";
 import { UploadCloud, FileVideo, X, Sparkles, Film, CheckCircle2 } from "lucide-react";
 import { Dashboard3D } from "./Dashboard3D";
 import { getProjectStatus } from "@/lib/actions/project.actions";
+import { useRouter } from "next/navigation";
 
 export function VideoUploader() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "selected" | "uploading" | "success">("idle");
   const [progress, setProgress] = useState(0);
+  const [projectIdState, setProjectIdState] = useState<string | null>(null);
+  const [s3KeyState, setS3KeyState] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const router = useRouter();
 
   // Clean up URL on unmount
   useEffect(() => {
@@ -78,15 +82,9 @@ export function VideoUploader() {
       xhr.onload = async () => {
         if (xhr.status === 200 || xhr.status === 201) {
           setProgress(100);
+          setProjectIdState(projectId);
+          setS3KeyState(s3Key);
           setStatus("success");
-          
-          // 3. Tell server to process the uploaded file via Inngest in the background
-          fetch("/api/process", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ projectId, s3Key, fileName: file.name }),
-          }).catch(err => console.error("Background AI trigger failed:", err));
-          
         } else {
           console.error("S3 Upload failed with status:", xhr.status, xhr.responseText);
           setStatus("idle");
@@ -165,7 +163,7 @@ export function VideoUploader() {
         </div>
       )}
 
-      {status === "selected" && file && previewUrl && (
+      {(status === "selected" || status === "uploading" || status === "success") && file && previewUrl && (
         <div className="bg-[#111111] border border-[#2a2a2a] rounded-3xl p-8 relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF]" />
           
@@ -174,14 +172,27 @@ export function VideoUploader() {
             <div className="w-full lg:w-2/3 bg-black rounded-2xl overflow-hidden border border-[#2a2a2a] relative group aspect-video">
               <video 
                 src={previewUrl} 
-                controls 
+                controls={status === "selected"} 
                 className="w-full h-full object-contain"
-                poster=""
               />
               <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]" />
+              
+              {/* Overlay during upload/success */}
+              {(status === "uploading" || status === "success") && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10 transition-all duration-500">
+                  {status === "uploading" && (
+                    <div className="w-24 h-24 rounded-full border-4 border-t-[#00E5FF] border-r-[#B026FF] border-b-transparent border-l-transparent animate-[spin_2s_linear_infinite]" />
+                  )}
+                  {status === "success" && (
+                    <div className="w-24 h-24 rounded-full bg-[#00E5FF]/20 flex items-center justify-center shadow-[0_0_40px_rgba(0,229,255,0.4)] transition-all duration-1000 scale-100 animate-pulse">
+                      <CheckCircle2 size={48} className="text-[#00E5FF]" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Video Details & Actions */}
+            {/* Dynamic Right Panel based on Status */}
             <div className="w-full lg:w-1/3 flex flex-col justify-between">
               <div>
                 <div className="flex items-start justify-between mb-6">
@@ -194,97 +205,102 @@ export function VideoUploader() {
                       <p className="text-sm text-[#6B6B6B]">{formatFileSize(file.size)}</p>
                     </div>
                   </div>
-                  <button onClick={reset} className="p-2 rounded-lg text-[#6B6B6B] hover:text-white hover:bg-[#1a1a1a] transition-colors" title="Remove file">
-                    <X size={20} />
-                  </button>
+                  {status === "selected" && (
+                    <button onClick={reset} className="p-2 rounded-lg text-[#6B6B6B] hover:text-white hover:bg-[#1a1a1a] transition-colors" title="Remove file">
+                      <X size={20} />
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <div className="p-4 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a]">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-[#6B6B6B]">Estimated Output</span>
-                      <span className="font-bold text-white">~15-20 Shorts</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-[#6B6B6B]">Auto Captions</span>
-                      <span className="font-bold text-[#00E5FF]">Enabled</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-[#6B6B6B]">Format</span>
-                      <span className="font-bold text-white">9:16 Vertical</span>
+                {/* State: SELECTED */}
+                {status === "selected" && (
+                  <div className="space-y-4 mb-8">
+                    <div className="p-4 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a]">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-[#6B6B6B]">Format</span>
+                        <span className="font-bold text-white">Direct S3 Upload</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-[#6B6B6B]">Max Size</span>
+                        <span className="font-bold text-[#00E5FF]">Unlimited (2GB+)</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              <button 
-                onClick={handleRealUpload}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-white transition-all duration-300 bg-gradient-to-r from-[#7000FF] to-[#B026FF] shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_35px_rgba(176,38,255,0.5)] hover:-translate-y-1 group"
-              >
-                <Sparkles size={18} className="text-[#00E5FF] group-hover:animate-pulse" />
-                Generate Viral Shorts
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {status === "uploading" && (
-        <div className="bg-[#111111] border border-[#B026FF]/30 rounded-3xl p-12 text-center shadow-[0_0_50px_rgba(176,38,255,0.1)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(176,38,255,0.15)_0%,transparent_70%)]" />
-          
-          <div className="relative z-10 max-w-md mx-auto">
-            <div className="w-20 h-20 mx-auto rounded-3xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center mb-8 relative">
-              <div className="absolute inset-0 rounded-3xl border-2 border-transparent border-t-[#00E5FF] border-l-[#B026FF] animate-spin" />
-              <Film size={32} className="text-[#B026FF] animate-pulse" />
-            </div>
-            
-            <h3 className="text-2xl font-black text-white mb-2">Uploading & Analyzing...</h3>
-            <p className="text-[#6B6B6B] text-sm mb-10">Our AI is scanning your video for high-engagement moments. Please don't close this tab.</p>
-            
-            <div className="flex items-center gap-4 mt-8">
-              <button 
-                onClick={cancelUpload}
-                className="w-1/3 flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-[#6B6B6B] transition-all duration-300 bg-[#1a1a1a] hover:bg-[#2a2a2a] hover:text-white"
-              >
-                Cancel
-              </button>
-              <div className="w-2/3">
-                <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF] transition-all duration-300 relative"
-                    style={{ width: `${Math.min(progress, 100)}%` }}
-                  >
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-20 mix-blend-overlay animate-[slide_1s_linear_infinite]" />
+                {/* State: UPLOADING */}
+                {status === "uploading" && (
+                  <div className="mb-8">
+                    <h3 className="text-xl font-black text-white mb-2">Uploading...</h3>
+                    <p className="text-[#6B6B6B] text-sm mb-6">Please don't close this tab while your video is securely transferring to AWS S3.</p>
+                    
+                    <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF] transition-all duration-300 relative"
+                        style={{ width: `${Math.min(progress, 100)}%` }}
+                      >
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-20 mix-blend-overlay animate-[slide_1s_linear_infinite]" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between text-xs font-bold text-[#a0a0a0]">
+                      <span>{progress < 100 ? "Uploading to Cloud..." : "Finalizing..."}</span>
+                      <span className="text-[#00E5FF]">{Math.min(progress, 100)}%</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex justify-between text-xs font-bold text-[#a0a0a0]">
-                  <span>{progress < 95 ? "Uploading to Cloud..." : "Processing with AI..."}</span>
-                  <span className="text-[#00E5FF]">{Math.min(progress, 100)}%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                )}
 
-      {status === "success" && (
-        <div className="bg-[#111111] border border-[#00E5FF]/30 rounded-3xl p-12 text-center shadow-[0_0_50px_rgba(0,229,255,0.1)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,229,255,0.15)_0%,transparent_70%)]" />
-          
-          <div className="relative z-10 max-w-md mx-auto flex flex-col items-center">
-            <div className="w-24 h-24 rounded-full bg-[#00E5FF]/10 flex items-center justify-center mb-6 text-[#00E5FF]">
-              <CheckCircle2 size={48} />
+                {/* State: SUCCESS */}
+                {status === "success" && (
+                  <div className="mb-8">
+                    <h3 className="text-xl font-black text-[#00E5FF] mb-2">Upload Successful!</h3>
+                    <p className="text-[#6B6B6B] text-sm mb-6">Your video is securely stored and ready for our AI processing engine.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              {status === "selected" && (
+                <button 
+                  onClick={handleRealUpload}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-[#090909] transition-all duration-300 bg-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.3)] hover:shadow-[0_0_35px_rgba(0,229,255,0.5)] hover:bg-white hover:-translate-y-1 group"
+                >
+                  <UploadCloud size={18} className="group-hover:animate-bounce" />
+                  Upload Video
+                </button>
+              )}
+
+              {status === "uploading" && (
+                <button 
+                  onClick={cancelUpload}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-[#6B6B6B] transition-all duration-300 bg-[#1a1a1a] hover:bg-[#2a2a2a] hover:text-white"
+                >
+                  Cancel Upload
+                </button>
+              )}
+
+              {status === "success" && (
+                <button 
+                  onClick={async () => {
+                    if (!projectIdState || !s3KeyState || !file) return;
+                    
+                    // 1. Trigger the background Inngest worker
+                    await fetch("/api/process", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ projectId: projectIdState, s3Key: s3KeyState, fileName: file.name }),
+                    });
+
+                    // 2. Navigate to the new project page
+                    router.push(`/dashboard/project/${projectIdState}`);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-white transition-all duration-300 bg-gradient-to-r from-[#7000FF] to-[#B026FF] shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_35px_rgba(176,38,255,0.5)] hover:-translate-y-1 group"
+                >
+                  <Sparkles size={18} className="text-[#00E5FF] group-hover:animate-pulse" />
+                  Turn into Viral Shorts
+                </button>
+              )}
             </div>
-            <h3 className="text-2xl font-black text-white mb-3">Analysis Complete!</h3>
-            <p className="text-[#6B6B6B] mb-8">We found 18 potential viral clips. You can now review, edit, and export them in your workspace.</p>
-            <button 
-              onClick={reset}
-              className="px-8 py-4 rounded-xl font-bold text-[#090909] bg-[#00E5FF] hover:bg-white transition-colors shadow-[0_0_20px_rgba(0,229,255,0.4)]"
-            >
-              Go to Workspace
-            </button>
           </div>
         </div>
       )}
