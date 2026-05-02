@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { currentUser } from "@clerk/nextjs/server";
-import { inngest } from "@/lib/inngest/client";
-import fs from "fs";
-import path from "path";
-import os from "os";
+import { s3Client, PutObjectCommand, getSignedUrl } from "@/lib/s3";
 
-// Generate a random string ID
 const generateId = () => Math.random().toString(36).substring(2, 15);
 
 export async function POST(req: NextRequest) {
@@ -17,47 +13,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const body = await req.json();
+    const { fileName, fileType } = body;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    if (!fileName || !fileType) {
+      return NextResponse.json({ error: "Missing file metadata" }, { status: 400 });
     }
 
     const projectId = generateId();
-    
-    // Save to temp disk
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    // Use os.tmpdir() to avoid issues with missing /tmp on windows
-    const tempFilePath = path.join(os.tmpdir(), `${projectId}-${file.name}`);
-    fs.writeFileSync(tempFilePath, buffer);
+    const s3Key = `projects/${projectId}/${Date.now()}-${fileName.replace(/\s+/g, '-')}`;
+
+    // Generate Presigned Upload URL (Valid for 1 hour)
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || "cliptic-bucket",
+      Key: s3Key,
+      ContentType: fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
     // Create DB Record
     await db.insert(projects).values({
       id: projectId,
       userId: user.id,
-      title: file.name,
+      title: fileName,
       status: "uploading",
       progress: "0",
     });
 
-    // Trigger Inngest
-    await inngest.send({
-      name: "video.process",
-      data: {
-        projectId,
-        filePath: tempFilePath,
-        fileName: file.name,
-        mimeType: file.type,
-      },
-    });
+    return NextResponse.json({ success: true, projectId, uploadUrl, s3Key });
 
-    return NextResponse.json({ success: true, projectId });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to generate upload URL", details: error.message || String(error) }, { status: 500 });
   }
 }

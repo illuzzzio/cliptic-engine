@@ -11,6 +11,7 @@ export function VideoUploader() {
   const [status, setStatus] = useState<"idle" | "selected" | "uploading" | "success">("idle");
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
 
   // Clean up URL on unmount
   useEffect(() => {
@@ -33,64 +34,90 @@ export function VideoUploader() {
     if (droppedFile) handleFile(droppedFile);
   };
 
-  const handleRealUpload = async () => {
-    if (!file) return;
-    setStatus("uploading");
-    setProgress(0);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        // Map browser->server upload to 0-50%
-        const percent = Math.round((event.loaded / event.total) * 50);
-        setProgress(percent);
-      }
-    };
-
-    xhr.onload = async () => {
-      if (xhr.status === 200) {
-        const response = JSON.parse(xhr.responseText);
-        const projectId = response.projectId;
-        
-        // Start polling DB for Inngest progress
-        const pollInterval = setInterval(async () => {
-          try {
-            const data = await getProjectStatus(projectId);
-            
-            // Map server->S3 DB progress (0-100) to (50-100)
-            const overallProgress = 50 + Math.floor(data.progress / 2);
-            setProgress(overallProgress);
-
-            if (data.status === "completed" || overallProgress === 100) {
-              clearInterval(pollInterval);
-              setStatus("success");
-              setProgress(100);
-            }
-          } catch (e) {
-            console.error("Polling error", e);
-          }
-        }, 1500);
-
-      } else {
-        console.error("Upload failed");
-        setStatus("idle");
-      }
-    };
-
-    xhr.open("POST", "/api/upload");
-    xhr.send(formData);
-  };
-
   const reset = () => {
     setFile(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setStatus("idle");
     setProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRealUpload = async () => {
+    if (!file) return;
+    setStatus("uploading");
+    setProgress(0);
+
+    try {
+      // 1. Get Presigned Upload URL from Server
+      const urlRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileType: file.type }),
+      });
+      const urlData = await urlRes.json();
+      
+      if (!urlRes.ok) throw new Error(urlData.details || "Failed to get upload URL");
+      
+      const { uploadUrl, projectId, s3Key } = urlData;
+
+      // 2. Upload directly to AWS S3
+      const xhr = new XMLHttpRequest();
+      xhrRef.current = xhr;
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          // Uploading is 0-90% of the UI
+          const percent = Math.round((event.loaded / event.total) * 90);
+          setProgress(percent);
+        }
+      };
+
+      xhr.onload = async () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          setProgress(100);
+          setStatus("success");
+          
+          // 3. Tell server to process the uploaded file via Inngest in the background
+          fetch("/api/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId, s3Key, fileName: file.name }),
+          }).catch(err => console.error("Background AI trigger failed:", err));
+          
+        } else {
+          console.error("S3 Upload failed with status:", xhr.status, xhr.responseText);
+          setStatus("idle");
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error("Network error occurred during upload.");
+        setStatus("idle");
+      };
+
+      xhr.onabort = () => {
+        console.log("Upload cancelled by user.");
+        setStatus("idle");
+        setProgress(0);
+      };
+
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", file.type);
+      xhr.send(file);
+    } catch (err: any) {
+      console.error("Upload initiation failed:", err);
+      setStatus("idle");
+    }
+  };
+
+  const cancelUpload = () => {
+    if (xhrRef.current) {
+      xhrRef.current.abort();
+      xhrRef.current = null;
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -215,18 +242,28 @@ export function VideoUploader() {
             <h3 className="text-2xl font-black text-white mb-2">Uploading & Analyzing...</h3>
             <p className="text-[#6B6B6B] text-sm mb-10">Our AI is scanning your video for high-engagement moments. Please don't close this tab.</p>
             
-            <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF] transition-all duration-300 relative"
-                style={{ width: `${Math.min(progress, 100)}%` }}
+            <div className="flex items-center gap-4 mt-8">
+              <button 
+                onClick={cancelUpload}
+                className="w-1/3 flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-[#6B6B6B] transition-all duration-300 bg-[#1a1a1a] hover:bg-[#2a2a2a] hover:text-white"
               >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-20 mix-blend-overlay animate-[slide_1s_linear_infinite]" />
+                Cancel
+              </button>
+              <div className="w-2/3">
+                <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF] transition-all duration-300 relative"
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                  >
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes.png')] opacity-20 mix-blend-overlay animate-[slide_1s_linear_infinite]" />
+                  </div>
+                </div>
+                
+                <div className="flex justify-between text-xs font-bold text-[#a0a0a0]">
+                  <span>{progress < 95 ? "Uploading to Cloud..." : "Processing with AI..."}</span>
+                  <span className="text-[#00E5FF]">{Math.min(progress, 100)}%</span>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex justify-between text-xs font-bold text-[#a0a0a0]">
-              <span>{progress < 50 ? "Uploading to Server..." : "Processing & Uploading to S3..."}</span>
-              <span className="text-[#00E5FF]">{Math.min(progress, 100)}%</span>
             </div>
           </div>
         </div>

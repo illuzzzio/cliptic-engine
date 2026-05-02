@@ -11,7 +11,7 @@ export const users = pgTable("users", {
 
 export const projects = pgTable("projects", {
   id: text("id").primaryKey(), // Generated NanoID or UUID
-  userId: text("user_id").notNull().references(() => users.id),
+  userId: text("user_id").notNull(),
   title: text("title").notNull(),
   status: text("status").notNull().default("uploading"), // uploading, processing, completed, failed
   progress: text("progress").notNull().default("0"), // percentage
