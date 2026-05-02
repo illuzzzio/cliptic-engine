@@ -36,8 +36,8 @@ export function Header() {
         background: scrolled ? "rgba(9,9,9,0.94)" : "rgba(9,9,9,0.6)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        borderBottom: scrolled ? "1px solid rgba(255,45,120,0.15)" : "1px solid transparent",
-        boxShadow: scrolled ? "0 4px 30px rgba(255,45,120,0.07)" : "none",
+        borderBottom: scrolled ? "1px solid rgba(176,38,255,0.15)" : "1px solid transparent",
+        boxShadow: scrolled ? "0 4px 30px rgba(176,38,255,0.07)" : "none",
       }}>
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
@@ -55,7 +55,7 @@ export function Header() {
               {link.label}
               {activeLink === link.href && (
                 <span className="absolute -bottom-1 left-0 right-0 h-px"
-                  style={{ background: "linear-gradient(90deg,#E63946,#FF2D78)" }} />
+                  style={{ background: "linear-gradient(90deg,#7000FF,#B026FF)" }} />
               )}
             </button>
           ))}
@@ -76,16 +76,16 @@ export function Header() {
               <SignUpButton mode="modal">
                 <button id="header-cta-btn"
                   className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400"
-                  style={{ background: "linear-gradient(135deg,#E63946,#FF2D78)", boxShadow: "0 0 20px rgba(255,45,120,0.3)" }}
-                  onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 35px rgba(255,45,120,0.55)"; el.style.transform = "translateY(-1px)"; }}
-                  onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 20px rgba(255,45,120,0.3)"; el.style.transform = "translateY(0)"; }}>
+                  style={{ background: "linear-gradient(135deg,#7000FF,#B026FF)", boxShadow: "0 0 20px rgba(176,38,255,0.3)" }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 35px rgba(176,38,255,0.55)"; el.style.transform = "translateY(-1px)"; }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 20px rgba(176,38,255,0.3)"; el.style.transform = "translateY(0)"; }}>
                   Get Started Free
                 </button>
               </SignUpButton>
             </>
           ) : (
             <>
-              <Link href="/dashboard" className="text-sm font-medium text-[#F8F8F8] hover:text-[#FF2D78] transition-colors mr-4">
+              <Link href="/dashboard" className="text-sm font-medium text-[#F8F8F8] hover:text-[#B026FF] transition-colors mr-4">
                 Dashboard
               </Link>
               <UserButton 
@@ -120,13 +120,13 @@ export function Header() {
           {!isLoaded ? null : !userId ? (
             <SignUpButton mode="modal">
               <button className="mt-2 px-5 py-3 rounded-lg text-sm font-semibold text-white"
-                style={{ background: "linear-gradient(135deg,#E63946,#FF2D78)" }}>
+                style={{ background: "linear-gradient(135deg,#7000FF,#B026FF)" }}>
                 Get Started Free
               </button>
             </SignUpButton>
           ) : (
             <Link href="/dashboard" className="mt-2 px-5 py-3 rounded-lg text-sm font-semibold text-white text-center"
-                style={{ background: "linear-gradient(135deg,#E63946,#FF2D78)" }}>
+                style={{ background: "linear-gradient(135deg,#7000FF,#B026FF)" }}>
                 Go to Dashboard
             </Link>
           )}

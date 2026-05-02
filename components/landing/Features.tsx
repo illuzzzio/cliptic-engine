@@ -3,18 +3,18 @@
 import React from "react";
 import { Scissors, Download, MessageSquareText, Zap, Globe, Lock, BarChart3, Clock, Sparkles } from "lucide-react";
 
-const C = { red: "#E63946", pink: "#FF2D78", yellow: "#FFD60A" };
+const C = { deep: "#7000FF", electric: "#B026FF", cyan: "#00E5FF" };
 
 const features = [
-  { icon: Zap,               color: C.red,    title: "AI Scene Detection",       desc: "Our model scans every frame to find the most engaging, high-energy moments automatically." },
-  { icon: Scissors,          color: C.pink,   title: "Smart Auto-Clipping",      desc: "Instantly clips detected highlights into properly trimmed short-form videos with zero effort." },
-  { icon: MessageSquareText, color: C.yellow, title: "Auto Caption Generation",  desc: "Generate word-by-word animated captions with 98% accuracy across 50+ languages." },
-  { icon: Download,          color: C.red,    title: "One-Click Downloads",      desc: "Export shorts in 9:16, 1:1, or 16:9 format optimized for TikTok, Reels, and YouTube Shorts." },
-  { icon: Globe,             color: C.pink,   title: "Multi-Language Support",   desc: "Translate and caption your content in 50+ languages to reach a global audience instantly." },
-  { icon: BarChart3,         color: C.yellow, title: "Engagement Analytics",     desc: "See virality scores, predicted watch-time, and A/B test thumbnails before publishing." },
-  { icon: Clock,             color: C.red,    title: "Batch Processing",         desc: "Upload and process dozens of long videos simultaneously — no queue, no waiting." },
-  { icon: Lock,              color: C.pink,   title: "Private & Secure",         desc: "All uploads are end-to-end encrypted and auto-deleted after 48 hours." },
-  { icon: Sparkles,          color: C.yellow, title: "AI Thumbnail Generator",   desc: "Automatically generates click-worthy thumbnails from the best frames of each short." },
+  { icon: Zap,               color: C.deep,    title: "AI Scene Detection",       desc: "Our model scans every frame to find the most engaging, high-energy moments automatically." },
+  { icon: Scissors,          color: C.electric,   title: "Smart Auto-Clipping",      desc: "Instantly clips detected highlights into properly trimmed short-form videos with zero effort." },
+  { icon: MessageSquareText, color: C.cyan, title: "Auto Caption Generation",  desc: "Generate word-by-word animated captions with 98% accuracy across 50+ languages." },
+  { icon: Download,          color: C.deep,    title: "One-Click Downloads",      desc: "Export shorts in 9:16, 1:1, or 16:9 format optimized for TikTok, Reels, and YouTube Shorts." },
+  { icon: Globe,             color: C.electric,   title: "Multi-Language Support",   desc: "Translate and caption your content in 50+ languages to reach a global audience instantly." },
+  { icon: BarChart3,         color: C.cyan, title: "Engagement Analytics",     desc: "See virality scores, predicted watch-time, and A/B test thumbnails before publishing." },
+  { icon: Clock,             color: C.deep,    title: "Batch Processing",         desc: "Upload and process dozens of long videos simultaneously — no queue, no waiting." },
+  { icon: Lock,              color: C.electric,   title: "Private & Secure",         desc: "All uploads are end-to-end encrypted and auto-deleted after 48 hours." },
+  { icon: Sparkles,          color: C.cyan, title: "AI Thumbnail Generator",   desc: "Automatically generates click-worthy thumbnails from the best frames of each short." },
 ];
 
 export function Features() {
@@ -22,13 +22,13 @@ export function Features() {
     <section id="features" aria-label="Features" className="relative py-24 px-6" style={{ zIndex: 1 }}>
       <div className="text-center mb-16 max-w-2xl mx-auto">
         <span className="inline-block mb-4 text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full"
-          style={{ background: "rgba(255,45,120,0.1)", color: C.pink, border: "1px solid rgba(255,45,120,0.3)" }}>
+          style={{ background: "rgba(176,38,255,0.1)", color: C.electric, border: "1px solid rgba(176,38,255,0.3)" }}>
           Features
         </span>
         <h2 className="text-4xl md:text-5xl font-black mb-4 leading-tight"
           style={{ color: "#F8F8F8", letterSpacing: "-0.02em" }}>
           Everything You Need to{" "}
-          <span style={{ background: `linear-gradient(135deg,${C.pink},${C.yellow})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+          <span style={{ background: `linear-gradient(135deg,${C.electric},${C.cyan})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             Go Viral
           </span>
         </h2>

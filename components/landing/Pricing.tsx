@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Check, Zap, Star, Building2 } from "lucide-react";
 
-const C = { red: "#E63946", pink: "#FF2D78", yellow: "#FFD60A", dark: "#111111", border: "#2a2a2a", white: "#F8F8F8", muted: "#6B6B6B" };
+const C = { deep: "#7000FF", electric: "#B026FF", cyan: "#00E5FF", dark: "#111111", border: "#2a2a2a", white: "#F8F8F8", muted: "#6B6B6B" };
 
 const plans = [
   {
@@ -16,18 +16,18 @@ const plans = [
   },
   {
     id: "pro", icon: Star, name: "Pro", tagline: "For creators who mean business",
-    price: { monthly: 29, yearly: 19 }, color: C.yellow, borderColor: C.yellow,
+    price: { monthly: 29, yearly: 19 }, color: C.cyan, borderColor: C.cyan,
     popular: true,
     cta: "Start Pro Trial",
-    ctaStyle: { background: C.yellow, border: "none", color: "#090909" },
+    ctaStyle: { background: C.cyan, border: "none", color: "#090909" },
     features: ["Unlimited shorts", "Up to 4-hour source videos", "4K export quality", "AI captions in 50+ languages", "No watermark", "Custom branding", "Priority processing", "Thumbnail generator", "Analytics dashboard"],
     notIncluded: ["API access"],
   },
   {
     id: "enterprise", icon: Building2, name: "Enterprise", tagline: "Scale with your team",
-    price: { monthly: 99, yearly: 79 }, color: C.pink, borderColor: C.pink,
+    price: { monthly: 99, yearly: 79 }, color: C.electric, borderColor: C.electric,
     cta: "Contact Sales",
-    ctaStyle: { background: "transparent", border: `1px solid ${C.pink}`, color: C.pink },
+    ctaStyle: { background: "transparent", border: `1px solid ${C.electric}`, color: C.electric },
     features: ["Everything in Pro", "Unlimited team members", "API access & webhooks", "White-label solution", "SLA guarantee", "Dedicated account manager", "Custom AI model training", "SSO / SAML support", "Advanced analytics"],
     notIncluded: [],
   },
@@ -40,17 +40,17 @@ export function Pricing() {
     <section id="pricing" aria-label="Pricing" className="relative py-24 px-6" style={{ zIndex: 1 }}>
       {/* Gradient divider top */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${C.red}, ${C.yellow}, ${C.pink}, transparent)` }} />
+        style={{ background: `linear-gradient(90deg, transparent, ${C.deep}, ${C.cyan}, ${C.electric}, transparent)` }} />
 
       <div className="text-center mb-12 max-w-2xl mx-auto">
         <span className="inline-block mb-4 text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full"
-          style={{ background: "rgba(230,57,70,0.1)", color: C.red, border: "1px solid rgba(230,57,70,0.3)" }}>
+          style={{ background: "rgba(112,0,255,0.1)", color: C.deep, border: "1px solid rgba(112,0,255,0.3)" }}>
           Pricing
         </span>
         <h2 className="text-4xl md:text-5xl font-black mb-4 leading-tight"
           style={{ color: C.white, letterSpacing: "-0.02em" }}>
           Simple,{" "}
-          <span style={{ background: `linear-gradient(135deg,${C.pink},${C.yellow})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+          <span style={{ background: `linear-gradient(135deg,${C.electric},${C.cyan})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
             Transparent
           </span>{" "}
           Pricing
@@ -66,12 +66,12 @@ export function Pricing() {
             <button key={b} id={`billing-toggle-${b}`} onClick={() => setBilling(b)}
               className="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 capitalize"
               style={{
-                background: billing === b ? C.red : "transparent",
+                background: billing === b ? C.deep : "transparent",
                 color: billing === b ? "#fff" : C.muted,
-                boxShadow: billing === b ? `0 0 15px rgba(230,57,70,0.35)` : "none",
+                boxShadow: billing === b ? `0 0 15px rgba(112,0,255,0.35)` : "none",
               }}>
               {b}
-              {b === "yearly" && <span className="ml-2 text-xs font-bold" style={{ color: billing === "yearly" ? C.yellow : C.pink }}>-35%</span>}
+              {b === "yearly" && <span className="ml-2 text-xs font-bold" style={{ color: billing === "yearly" ? C.cyan : C.electric }}>-35%</span>}
             </button>
           ))}
         </div>
@@ -93,7 +93,7 @@ export function Pricing() {
               }}>
               {plan.popular && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest"
-                  style={{ background: C.yellow, color: "#090909" }}>Most Popular</div>
+                  style={{ background: C.cyan, color: "#090909" }}>Most Popular</div>
               )}
 
               <div className="flex items-center gap-3 mb-4">
@@ -109,7 +109,7 @@ export function Pricing() {
 
               <div className="mb-6">
                 <div className="flex items-end gap-1">
-                  <span className="text-5xl font-black" style={{ color: plan.popular ? C.yellow : C.white, letterSpacing: "-0.04em" }}>
+                  <span className="text-5xl font-black" style={{ color: plan.popular ? C.cyan : C.white, letterSpacing: "-0.04em" }}>
                     ${price}
                   </span>
                   {price > 0 && <span className="text-sm mb-2" style={{ color: C.muted }}>/mo</span>}
@@ -133,7 +133,7 @@ export function Pricing() {
               <ul className="space-y-3">
                 {plan.features.map(f => (
                   <li key={f} className="flex items-start gap-2.5 text-sm">
-                    <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: C.pink }} />
+                    <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: C.electric }} />
                     <span style={{ color: "#A0A0A0" }}>{f}</span>
                   </li>
                 ))}

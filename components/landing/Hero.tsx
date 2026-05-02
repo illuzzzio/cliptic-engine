@@ -5,9 +5,9 @@ import { Play, Scissors, Download, ArrowRight, ChevronDown, Zap } from "lucide-r
 
 // ── Theme tokens ──────────────────────────────────────────────
 const C = {
-  red:    "#E63946",
-  pink:   "#FF2D78",
-  yellow: "#FFD60A",
+  deep:    "#7000FF",
+  electric:   "#B026FF",
+  cyan: "#00E5FF",
   white:  "#F8F8F8",
   muted:  "#6B6B6B",
   dark:   "#111111",
@@ -39,17 +39,17 @@ export function Hero() {
 
       {/* Announcement badge */}
       <div className="mb-8 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest"
-        style={{ background: "rgba(255,45,120,0.12)", border: "1px solid rgba(255,45,120,0.35)", color: C.pink, animation: "fadeInDown 0.6s ease-out both" }}>
-        <Zap size={12} fill={C.pink} />
+        style={{ background: "rgba(176,38,255,0.12)", border: "1px solid rgba(176,38,255,0.35)", color: C.electric, animation: "fadeInDown 0.6s ease-out both" }}>
+        <Zap size={12} fill={C.electric} />
         <span>AI-Powered Video Clipping Engine</span>
-        <Zap size={12} fill={C.pink} />
+        <Zap size={12} fill={C.electric} />
       </div>
 
       {/* Main headline */}
       <h1 className="text-center font-black leading-none mb-6 max-w-4xl"
         style={{ fontSize: "clamp(3rem,8vw,6rem)", color: C.white, animation: "fadeInUp 0.7s ease-out 0.1s both", letterSpacing: "-0.03em" }}>
         Turn Long Videos Into{" "}
-        <span style={{ background: `linear-gradient(135deg, ${C.red} 0%, ${C.yellow} 50%, ${C.pink} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: `drop-shadow(0 0 30px rgba(255,45,120,0.45))`, display: "inline-block" }}>
+        <span style={{ background: `linear-gradient(135deg, ${C.deep} 0%, ${C.cyan} 50%, ${C.electric} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: `drop-shadow(0 0 30px rgba(176,38,255,0.45))`, display: "inline-block" }}>
           Viral Shorts
         </span>
       </h1>
@@ -65,32 +65,32 @@ export function Hero() {
         style={{ animation: "fadeInUp 0.7s ease-out 0.3s both" }}>
         <button id="hero-primary-cta"
           className="group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white transition-all duration-300 focus:outline-none"
-          style={{ background: `linear-gradient(135deg, ${C.red}, ${C.pink})`, boxShadow: "0 0 30px rgba(255,45,120,0.4), 0 8px 25px rgba(0,0,0,0.4)", fontSize: "1.05rem" }}
-          onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 55px rgba(255,45,120,0.65), 0 12px 30px rgba(0,0,0,0.5)"; el.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 30px rgba(255,45,120,0.4), 0 8px 25px rgba(0,0,0,0.4)"; el.style.transform = "translateY(0)"; }}>
+          style={{ background: `linear-gradient(135deg, ${C.deep}, ${C.electric})`, boxShadow: "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)", fontSize: "1.05rem" }}
+          onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 55px rgba(176,38,255,0.65), 0 12px 30px rgba(0,0,0,0.5)"; el.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)"; el.style.transform = "translateY(0)"; }}>
           <Scissors size={18} />Start Clipping Free
           <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
         </button>
 
         <button id="hero-demo-btn"
           className="flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-300 focus:outline-none"
-          style={{ background: "transparent", border: `1px solid rgba(255,214,10,0.5)`, color: C.yellow, fontSize: "1.05rem" }}
-          onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "rgba(255,214,10,0.08)"; el.style.boxShadow = "0 0 20px rgba(255,214,10,0.2)"; el.style.borderColor = "rgba(255,214,10,0.9)"; }}
-          onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "transparent"; el.style.boxShadow = "none"; el.style.borderColor = "rgba(255,214,10,0.5)"; }}>
-          <Play size={18} fill={C.yellow} />Watch Demo
+          style={{ background: "transparent", border: `1px solid rgba(0,229,255,0.5)`, color: C.cyan, fontSize: "1.05rem" }}
+          onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "rgba(0,229,255,0.08)"; el.style.boxShadow = "0 0 20px rgba(0,229,255,0.2)"; el.style.borderColor = "rgba(0,229,255,0.9)"; }}
+          onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = "transparent"; el.style.boxShadow = "none"; el.style.borderColor = "rgba(0,229,255,0.5)"; }}>
+          <Play size={18} fill={C.cyan} />Watch Demo
         </button>
       </div>
 
       {/* 3D preview card */}
       <div ref={videoCardRef}
         className="relative w-full max-w-3xl rounded-2xl overflow-hidden"
-        style={{ transition: "transform 0.1s ease", border: "1px solid rgba(42,42,42,0.8)", background: C.dark, boxShadow: `0 0 0 1px rgba(255,45,120,0.1), 0 40px 80px rgba(0,0,0,0.8), 0 0 60px rgba(255,45,120,0.07)`, animation: "fadeInUp 0.8s ease-out 0.4s both" }}>
+        style={{ transition: "transform 0.1s ease", border: "1px solid rgba(42,42,42,0.8)", background: C.dark, boxShadow: `0 0 0 1px rgba(176,38,255,0.1), 0 40px 80px rgba(0,0,0,0.8), 0 0 60px rgba(176,38,255,0.07)`, animation: "fadeInUp 0.8s ease-out 0.4s both" }}>
 
         {/* Window chrome */}
         <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#0e0e0e", borderBottom: "1px solid #1a1a1a" }}>
-          <span className="w-3 h-3 rounded-full" style={{ background: C.red }} />
-          <span className="w-3 h-3 rounded-full" style={{ background: C.yellow }} />
-          <span className="w-3 h-3 rounded-full" style={{ background: C.pink }} />
+          <span className="w-3 h-3 rounded-full" style={{ background: C.deep }} />
+          <span className="w-3 h-3 rounded-full" style={{ background: C.cyan }} />
+          <span className="w-3 h-3 rounded-full" style={{ background: C.electric }} />
           <span className="flex-1 text-center text-xs" style={{ color: "#3a3a3a" }}>cliptic-engine.app — Processing video.mp4</span>
         </div>
 
@@ -99,20 +99,20 @@ export function Hero() {
           <div className="md:col-span-3 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold" style={{ color: C.muted }}>SOURCE TIMELINE</span>
-              <span className="text-xs px-2 py-0.5 rounded" style={{ background: `${C.red}20`, color: C.red }}>45:32 min</span>
+              <span className="text-xs px-2 py-0.5 rounded" style={{ background: `${C.deep}20`, color: C.deep }}>45:32 min</span>
             </div>
             {/* Waveform */}
             <div className="h-12 rounded-lg flex items-center gap-0.5 px-2 overflow-hidden" style={{ background: "#0d0d0d", border: "1px solid #1a1a1a" }}>
               {Array.from({ length: 60 }).map((_, i) => (
-                <div key={i} className="flex-1 rounded-full" style={{ height: `${(20 + Math.sin(i * 0.5) * 15).toFixed(1)}px`, background: i > 20 && i < 35 ? `linear-gradient(to top,${C.red},${C.yellow})` : i > 42 && i < 52 ? `linear-gradient(to top,${C.pink},${C.pink}80)` : "#2a2a2a", minWidth: "2px" }} />
+                <div key={i} className="flex-1 rounded-full" style={{ height: `${(20 + Math.sin(i * 0.5) * 15).toFixed(1)}px`, background: i > 20 && i < 35 ? `linear-gradient(to top,${C.deep},${C.cyan})` : i > 42 && i < 52 ? `linear-gradient(to top,${C.electric},${C.electric}80)` : "#2a2a2a", minWidth: "2px" }} />
               ))}
             </div>
             {/* Detected clips */}
             <div className="space-y-2">
               {[
-                { label: "Best Moment #1", time: "08:24 – 11:30", color: C.red,    score: 97 },
-                { label: "Best Moment #2", time: "22:10 – 24:45", color: C.pink,   score: 89 },
-                { label: "Best Moment #3", time: "38:02 – 40:15", color: C.yellow, score: 82 },
+                { label: "Best Moment #1", time: "08:24 – 11:30", color: C.deep,    score: 97 },
+                { label: "Best Moment #2", time: "22:10 – 24:45", color: C.electric,   score: 89 },
+                { label: "Best Moment #3", time: "38:02 – 40:15", color: C.cyan, score: 82 },
               ].map(clip => (
                 <div key={clip.label} className="flex items-center justify-between p-2 rounded-lg"
                   style={{ background: `${clip.color}10`, border: `1px solid ${clip.color}30` }}>
@@ -131,12 +131,12 @@ export function Hero() {
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold" style={{ color: C.muted }}>GENERATED SHORTS</span>
-              <span className="text-xs" style={{ color: C.pink }}><Download size={10} className="inline mr-1" />3 ready</span>
+              <span className="text-xs" style={{ color: C.electric }}><Download size={10} className="inline mr-1" />3 ready</span>
             </div>
             {[
-              { gradient: `linear-gradient(135deg,${C.red}20,${C.yellow}10)`, border: `${C.red}40` },
-              { gradient: `linear-gradient(135deg,${C.pink}20,${C.pink}10)`, border: `${C.pink}40` },
-              { gradient: `linear-gradient(135deg,${C.yellow}20,${C.red}10)`, border: `${C.yellow}30` },
+              { gradient: `linear-gradient(135deg,${C.deep}20,${C.cyan}10)`, border: `${C.deep}40` },
+              { gradient: `linear-gradient(135deg,${C.electric}20,${C.electric}10)`, border: `${C.electric}40` },
+              { gradient: `linear-gradient(135deg,${C.cyan}20,${C.deep}10)`, border: `${C.cyan}30` },
             ].map((card, i) => (
               <div key={i} className="rounded-xl p-3 flex items-center gap-3"
                 style={{ background: card.gradient, border: `1px solid ${card.border}` }}>
@@ -157,10 +157,10 @@ export function Hero() {
         <div className="px-6 pb-4" style={{ borderTop: "1px solid #1a1a1a", paddingTop: "12px" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs" style={{ color: C.muted }}>AI Processing...</span>
-            <span className="text-xs font-semibold" style={{ color: C.pink }}>78%</span>
+            <span className="text-xs font-semibold" style={{ color: C.electric }}>78%</span>
           </div>
           <div className="h-1 rounded-full overflow-hidden" style={{ background: "#1a1a1a" }}>
-            <div className="h-full rounded-full" style={{ width: "78%", background: `linear-gradient(90deg,${C.red},${C.yellow},${C.pink})` }} />
+            <div className="h-full rounded-full" style={{ width: "78%", background: `linear-gradient(90deg,${C.deep},${C.cyan},${C.electric})` }} />
           </div>
         </div>
       </div>
@@ -169,10 +169,10 @@ export function Hero() {
       <div className="mt-12 flex flex-wrap items-center justify-center gap-8"
         style={{ animation: "fadeInUp 0.8s ease-out 0.6s both" }}>
         {[
-          { value: "500K+", label: "Shorts Created", color: C.red    },
-          { value: "10x",   label: "Faster Editing", color: C.pink   },
-          { value: "98%",   label: "AI Accuracy",    color: C.yellow },
-          { value: "50+",   label: "Languages",      color: C.red    },
+          { value: "500K+", label: "Shorts Created", color: C.deep    },
+          { value: "10x",   label: "Faster Editing", color: C.electric   },
+          { value: "98%",   label: "AI Accuracy",    color: C.cyan },
+          { value: "50+",   label: "Languages",      color: C.deep    },
         ].map(stat => (
           <div key={stat.label} className="text-center">
             <div className="text-2xl font-black" style={{ color: stat.color, textShadow: `0 0 20px ${stat.color}50` }}>{stat.value}</div>

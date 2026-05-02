@@ -4,7 +4,7 @@ import React from "react";
 import { ClipticLogo } from "./ClipticLogo";
 import { ExternalLink, Code2, Play, Camera, Briefcase, ArrowUpRight } from "lucide-react";
 
-const C = { red: "#E63946", pink: "#FF2D78", yellow: "#FFD60A", muted: "#6B6B6B", border: "#1a1a1a" };
+const C = { deep: "#7000FF", electric: "#B026FF", cyan: "#00E5FF", muted: "#6B6B6B", border: "#1a1a1a" };
 
 const footerLinks = {
   Product:   ["Features", "Pricing", "Changelog", "Roadmap", "Status"],
@@ -27,7 +27,7 @@ export function Footer() {
       style={{ background: "#060606", borderTop: "1px solid #1a1a1a", zIndex: 1 }}>
       {/* Top tri-color gradient bar */}
       <div className="w-full h-px"
-        style={{ background: `linear-gradient(90deg, transparent 0%, ${C.red} 25%, ${C.yellow} 50%, ${C.pink} 75%, transparent 100%)` }} />
+        style={{ background: `linear-gradient(90deg, transparent 0%, ${C.deep} 25%, ${C.cyan} 50%, ${C.electric} 75%, transparent 100%)` }} />
 
       <div className="max-w-7xl mx-auto px-6 pt-16 pb-10">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-10 mb-12">
@@ -42,7 +42,7 @@ export function Footer() {
                 <a key={label} href={href} aria-label={label}
                   className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 focus:outline-none"
                   style={{ background: "#111111", border: "1px solid #2a2a2a", color: C.muted }}
-                  onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = C.pink; el.style.color = C.pink; el.style.background = "rgba(255,45,120,0.08)"; }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = C.electric; el.style.color = C.electric; el.style.background = "rgba(176,38,255,0.08)"; }}
                   onMouseLeave={e => { const el = e.currentTarget as HTMLAnchorElement; el.style.borderColor = "#2a2a2a"; el.style.color = C.muted; el.style.background = "#111111"; }}>
                   <Icon size={15} />
                 </a>

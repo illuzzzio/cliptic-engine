@@ -11,12 +11,12 @@
   --cliptic-dark: #111111;
   --cliptic-dark-2: #1a1a1a;
   --cliptic-border: #2a2a2a;
-  --cliptic-red: #E63946;
-  --cliptic-red-glow: rgba(230, 57, 70, 0.25);
-  --cliptic-pink: #FF2D78;
-  --cliptic-pink-glow: rgba(255, 45, 120, 0.25);
-  --cliptic-yellow: #FFD60A;
-  --cliptic-yellow-glow: rgba(255, 214, 10, 0.25);
+  --cliptic-purple-deep: #7000FF;
+  --cliptic-purple-deep-glow: rgba(112, 0, 255, 0.25);
+  --cliptic-purple-electric: #B026FF;
+  --cliptic-purple-electric-glow: rgba(176, 38, 255, 0.25);
+  --cliptic-cyan: #00E5FF;
+  --cliptic-cyan-glow: rgba(0, 229, 255, 0.25);
   --cliptic-white: #F8F8F8;
   --cliptic-muted: #6B6B6B;
   --cliptic-subtle: #3a3a3a;
@@ -116,11 +116,11 @@
     scroll-behavior: smooth;
   }
   ::selection {
-    background-color: rgba(230, 57, 70, 0.3);
+    background-color: rgba(112, 0, 255, 0.3);
     color: #F8F8F8;
   }
   :focus-visible {
-    outline: 2px solid var(--cliptic-yellow);
+    outline: 2px solid var(--cliptic-cyan);
     outline-offset: 2px;
   }
 }

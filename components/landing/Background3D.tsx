@@ -12,7 +12,7 @@ export function Background3D() {
       <div className="absolute" style={{
         width: "900px", height: "900px", top: "-200px", left: "50%",
         transform: "translateX(-50%)",
-        background: "radial-gradient(ellipse, rgba(230,57,70,0.09) 0%, transparent 68%)",
+        background: "radial-gradient(ellipse, rgba(112,0,255,0.09) 0%, transparent 68%)",
         animation: "float-blob-1 8s ease-in-out infinite alternate",
         borderRadius: "50%",
       }} />
@@ -20,7 +20,7 @@ export function Background3D() {
       {/* Pink left blob */}
       <div className="absolute" style={{
         width: "600px", height: "600px", bottom: "10%", left: "-100px",
-        background: "radial-gradient(ellipse, rgba(255,45,120,0.07) 0%, transparent 70%)",
+        background: "radial-gradient(ellipse, rgba(176,38,255,0.07) 0%, transparent 70%)",
         animation: "float-blob-2 10s ease-in-out infinite alternate",
         borderRadius: "50%",
       }} />
@@ -28,7 +28,7 @@ export function Background3D() {
       {/* Yellow right blob */}
       <div className="absolute" style={{
         width: "500px", height: "500px", bottom: "20%", right: "-80px",
-        background: "radial-gradient(ellipse, rgba(255,214,10,0.05) 0%, transparent 70%)",
+        background: "radial-gradient(ellipse, rgba(0,229,255,0.05) 0%, transparent 70%)",
         animation: "float-blob-3 7s ease-in-out infinite alternate",
         borderRadius: "50%",
       }} />
@@ -36,7 +36,7 @@ export function Background3D() {
       {/* Mid pink */}
       <div className="absolute" style={{
         width: "400px", height: "400px", top: "45%", right: "18%",
-        background: "radial-gradient(ellipse, rgba(255,45,120,0.05) 0%, transparent 70%)",
+        background: "radial-gradient(ellipse, rgba(176,38,255,0.05) 0%, transparent 70%)",
         animation: "float-blob-2 9s ease-in-out infinite alternate",
         borderRadius: "50%",
       }} />
