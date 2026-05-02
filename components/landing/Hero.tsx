@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Play, Scissors, Download, ArrowRight, ChevronDown, Zap } from "lucide-react";
+import { Hero3DEffect } from "./Hero3DEffect";
 
 // ── Theme tokens ──────────────────────────────────────────────
 const C = {
@@ -36,6 +37,7 @@ export function Hero() {
     <section id="hero" aria-label="Hero section"
       className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16"
       style={{ zIndex: 1 }}>
+      <Hero3DEffect />
 
       {/* Announcement badge */}
       <div className="mb-8 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-widest"

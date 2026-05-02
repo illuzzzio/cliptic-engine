@@ -1,18 +1,20 @@
 "use client";
 import React from "react";
-import { UserButton } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { ClipticLogo } from "@/components/landing/ClipticLogo";
 import Link from "next/link";
 import { ArrowLeft, Video, Sparkles, BarChart2, Plus } from "lucide-react";
+import { VideoUploader } from "@/components/dashboard/VideoUploader";
 
 export default function DashboardPage() {
+  const { user } = useUser();
   return (
     <div className="w-full">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-black bg-gradient-to-r from-[#B026FF] to-[#00E5FF] bg-clip-text text-transparent mb-1">
-              Welcome back
+              Welcome back, {user?.firstName || 'Creator'}
             </h1>
             <p className="text-[#6B6B6B] text-sm">Ready to create some viral clips?</p>
           </div>
@@ -50,25 +52,8 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Empty State Area */}
-        <div className="bg-gradient-to-br from-[#111111] to-[#0a0a0a] border border-[#2a2a2a] border-dashed rounded-3xl p-16 text-center flex flex-col items-center justify-center min-h-[400px] relative overflow-hidden group">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] mix-blend-overlay" />
-          
-          <div className="w-20 h-20 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center mb-6 relative z-10 shadow-[0_0_30px_rgba(176,38,255,0.1)] group-hover:scale-110 transition-transform duration-500">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-[#B026FF] to-[#00E5FF] opacity-20 blur-xl" />
-            <Video size={32} className="text-[#00E5FF] relative z-10" />
-          </div>
-          
-          <h3 className="text-2xl font-black text-[#F8F8F8] mb-3 relative z-10">No projects yet</h3>
-          <p className="text-[#6B6B6B] max-w-md mx-auto mb-8 relative z-10 text-sm leading-relaxed">
-            Upload your first video to start generating viral shorts automatically with AI. Our engine will find the best hooks instantly.
-          </p>
-          
-          <button className="relative z-10 flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 border border-[#B026FF]/50 text-[#B026FF] hover:bg-[#B026FF]/10 hover:border-[#B026FF] focus:outline-none focus:ring-2 focus:ring-[#B026FF] focus:ring-offset-2 focus:ring-offset-[#090909]">
-            <UploadIcon />
-            Import Video
-          </button>
-        </div>
+        {/* Upload Section */}
+        <VideoUploader />
       </div>
     </div>
   );
