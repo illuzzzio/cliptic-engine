@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { UploadCloud, FileVideo, X, Sparkles, Film, CheckCircle2 } from "lucide-react";
 import { Dashboard3D } from "./Dashboard3D";
+import { getProjectStatus } from "@/lib/actions/project.actions";
 
 export function VideoUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -32,21 +33,56 @@ export function VideoUploader() {
     if (droppedFile) handleFile(droppedFile);
   };
 
-  const handleMockUpload = () => {
+  const handleRealUpload = async () => {
+    if (!file) return;
     setStatus("uploading");
     setProgress(0);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
     
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setStatus("success");
-          return 100;
-        }
-        return prev + Math.floor(Math.random() * 15) + 5;
-      });
-    }, 500);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        // Map browser->server upload to 0-50%
+        const percent = Math.round((event.loaded / event.total) * 50);
+        setProgress(percent);
+      }
+    };
+
+    xhr.onload = async () => {
+      if (xhr.status === 200) {
+        const response = JSON.parse(xhr.responseText);
+        const projectId = response.projectId;
+        
+        // Start polling DB for Inngest progress
+        const pollInterval = setInterval(async () => {
+          try {
+            const data = await getProjectStatus(projectId);
+            
+            // Map server->S3 DB progress (0-100) to (50-100)
+            const overallProgress = 50 + Math.floor(data.progress / 2);
+            setProgress(overallProgress);
+
+            if (data.status === "completed" || overallProgress === 100) {
+              clearInterval(pollInterval);
+              setStatus("success");
+              setProgress(100);
+            }
+          } catch (e) {
+            console.error("Polling error", e);
+          }
+        }, 1500);
+
+      } else {
+        console.error("Upload failed");
+        setStatus("idle");
+      }
+    };
+
+    xhr.open("POST", "/api/upload");
+    xhr.send(formData);
   };
 
   const reset = () => {
@@ -155,7 +191,7 @@ export function VideoUploader() {
               </div>
 
               <button 
-                onClick={handleMockUpload}
+                onClick={handleRealUpload}
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-white transition-all duration-300 bg-gradient-to-r from-[#7000FF] to-[#B026FF] shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_35px_rgba(176,38,255,0.5)] hover:-translate-y-1 group"
               >
                 <Sparkles size={18} className="text-[#00E5FF] group-hover:animate-pulse" />
@@ -189,7 +225,7 @@ export function VideoUploader() {
             </div>
             
             <div className="flex justify-between text-xs font-bold text-[#a0a0a0]">
-              <span>Processing File...</span>
+              <span>{progress < 50 ? "Uploading to Server..." : "Processing & Uploading to S3..."}</span>
               <span className="text-[#00E5FF]">{Math.min(progress, 100)}%</span>
             </div>
           </div>
