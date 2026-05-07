@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { UploadCloud, FileVideo, X, Sparkles, Film, CheckCircle2 } from "lucide-react";
+import { UploadCloud, FileVideo, X, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { Dashboard3D } from "./Dashboard3D";
-import { getProjectStatus } from "@/lib/actions/project.actions";
 import { useRouter } from "next/navigation";
+
+const MIN_VIDEO_DURATION_SECONDS = 60;
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Failed to start processing";
+}
 
 export function VideoUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +18,10 @@ export function VideoUploader() {
   const [progress, setProgress] = useState(0);
   const [projectIdState, setProjectIdState] = useState<string | null>(null);
   const [s3KeyState, setS3KeyState] = useState<string | null>(null);
+  const [isStartingProcess, setIsStartingProcess] = useState(false);
+  const [processError, setProcessError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
   const router = useRouter();
@@ -29,6 +38,8 @@ export function VideoUploader() {
       setFile(selectedFile);
       setPreviewUrl(URL.createObjectURL(selectedFile));
       setStatus("selected");
+      setDurationError(null);
+      setVideoDuration(null);
     }
   };
 
@@ -44,13 +55,19 @@ export function VideoUploader() {
     setPreviewUrl(null);
     setStatus("idle");
     setProgress(0);
+    setProjectIdState(null);
+    setS3KeyState(null);
+    setProcessError(null);
+    setIsStartingProcess(false);
+    setDurationError(null);
+    setVideoDuration(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleRealUpload = async () => {
-    if (!file) return;
+    if (!file || durationError) return;
     setStatus("uploading");
     setProgress(0);
 
@@ -84,6 +101,7 @@ export function VideoUploader() {
           setProgress(100);
           setProjectIdState(projectId);
           setS3KeyState(s3Key);
+          setProcessError(null);
           setStatus("success");
         } else {
           console.error("S3 Upload failed with status:", xhr.status, xhr.responseText);
@@ -105,7 +123,7 @@ export function VideoUploader() {
       xhr.open("PUT", uploadUrl);
       xhr.setRequestHeader("Content-Type", file.type);
       xhr.send(file);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload initiation failed:", err);
       setStatus("idle");
     }
@@ -173,6 +191,15 @@ export function VideoUploader() {
               <video 
                 src={previewUrl} 
                 controls={status === "selected"} 
+                onLoadedMetadata={(event) => {
+                  const duration = event.currentTarget.duration;
+                  setVideoDuration(duration);
+                  setDurationError(
+                    duration < MIN_VIDEO_DURATION_SECONDS
+                      ? "Please upload a video that is at least 1 minute long."
+                      : null
+                  );
+                }}
                 className="w-full h-full object-contain"
               />
               <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]" />
@@ -181,7 +208,7 @@ export function VideoUploader() {
               {(status === "uploading" || status === "success") && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-10 transition-all duration-500">
                   {status === "uploading" && (
-                    <div className="w-24 h-24 rounded-full border-4 border-t-[#00E5FF] border-r-[#B026FF] border-b-transparent border-l-transparent animate-[spin_2s_linear_infinite]" />
+                    <div className="w-24 h-24 rounded-full border-4 border-t-[#00E5FF] border-r-[#B026FF] border-b-transparent border-l-transparent animate-[spin_4s_linear_infinite]" />
                   )}
                   {status === "success" && (
                     <div className="w-24 h-24 rounded-full bg-[#00E5FF]/20 flex items-center justify-center shadow-[0_0_40px_rgba(0,229,255,0.4)] transition-all duration-1000 scale-100 animate-pulse">
@@ -224,7 +251,21 @@ export function VideoUploader() {
                         <span className="text-[#6B6B6B]">Max Size</span>
                         <span className="font-bold text-[#00E5FF]">Unlimited (2GB+)</span>
                       </div>
+                      <div className="mt-2 flex items-center justify-between text-sm">
+                        <span className="text-[#6B6B6B]">Minimum Length</span>
+                        <span className="font-bold text-[#00E5FF]">1 minute</span>
+                      </div>
                     </div>
+                    {durationError && (
+                      <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                        {durationError}
+                      </p>
+                    )}
+                    {!durationError && videoDuration !== null && (
+                      <p className="rounded-xl border border-[#00E5FF]/20 bg-[#00E5FF]/10 p-3 text-sm text-[#00E5FF]">
+                        Video length looks good.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -232,7 +273,7 @@ export function VideoUploader() {
                 {status === "uploading" && (
                   <div className="mb-8">
                     <h3 className="text-xl font-black text-white mb-2">Uploading...</h3>
-                    <p className="text-[#6B6B6B] text-sm mb-6">Please don't close this tab while your video is securely transferring to AWS S3.</p>
+                    <p className="text-[#6B6B6B] text-sm mb-6">Please don&apos;t close this tab while your video is securely transferring to AWS S3.</p>
                     
                     <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
                       <div 
@@ -255,6 +296,11 @@ export function VideoUploader() {
                   <div className="mb-8">
                     <h3 className="text-xl font-black text-[#00E5FF] mb-2">Upload Successful!</h3>
                     <p className="text-[#6B6B6B] text-sm mb-6">Your video is securely stored and ready for our AI processing engine.</p>
+                    {processError && (
+                      <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                        {processError}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -263,7 +309,8 @@ export function VideoUploader() {
               {status === "selected" && (
                 <button 
                   onClick={handleRealUpload}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-[#090909] transition-all duration-300 bg-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.3)] hover:shadow-[0_0_35px_rgba(0,229,255,0.5)] hover:bg-white hover:-translate-y-1 group"
+                  disabled={Boolean(durationError) || videoDuration === null}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-black text-[#090909] transition-all duration-300 bg-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.3)] hover:shadow-[0_0_35px_rgba(0,229,255,0.5)] hover:bg-white hover:-translate-y-1 group disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#00E5FF]"
                 >
                   <UploadCloud size={18} className="group-hover:animate-bounce" />
                   Upload Video
@@ -282,22 +329,37 @@ export function VideoUploader() {
               {status === "success" && (
                 <button 
                   onClick={async () => {
-                    if (!projectIdState || !s3KeyState || !file) return;
+                    if (!projectIdState || !s3KeyState || !file || isStartingProcess) return;
+                    setIsStartingProcess(true);
+                    setProcessError(null);
                     
-                    // 1. Trigger the background Inngest worker
-                    await fetch("/api/process", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ projectId: projectIdState, s3Key: s3KeyState, fileName: file.name }),
-                    });
+                    try {
+                      const res = await fetch("/api/process", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ projectId: projectIdState, s3Key: s3KeyState, fileName: file.name }),
+                      });
+                      const data = await res.json();
 
-                    // 2. Navigate to the new project page
-                    router.push(`/dashboard/project/${projectIdState}`);
+                      if (!res.ok) {
+                        throw new Error(data.details || data.error || "Failed to start processing");
+                      }
+
+                      router.push(`/dashboard/project/${projectIdState}`);
+                    } catch (err: unknown) {
+                      setProcessError(getErrorMessage(err));
+                      setIsStartingProcess(false);
+                    }
                   }}
+                  disabled={isStartingProcess}
                   className="w-full flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-black text-white transition-all duration-300 bg-gradient-to-r from-[#7000FF] to-[#B026FF] shadow-[0_0_20px_rgba(176,38,255,0.3)] hover:shadow-[0_0_35px_rgba(176,38,255,0.5)] hover:-translate-y-1 group"
                 >
-                  <Sparkles size={18} className="text-[#00E5FF] group-hover:animate-pulse" />
-                  Turn into Viral Shorts
+                  {isStartingProcess ? (
+                    <Loader2 size={18} className="animate-[spin_2s_linear_infinite] text-[#00E5FF]" />
+                  ) : (
+                    <Sparkles size={18} className="text-[#00E5FF] group-hover:animate-pulse" />
+                  )}
+                  {isStartingProcess ? "Starting AI Processing..." : "Turn into Viral Shorts"}
                 </button>
               )}
             </div>

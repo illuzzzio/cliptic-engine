@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { projects } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { generatedShorts, projects } from "@/lib/db/schema";
+import { asc, eq } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
 export async function getProjectStatus(projectId: string) {
@@ -22,9 +22,19 @@ export async function getProjectStatus(projectId: string) {
     throw new Error("Unauthorized");
   }
 
+  const shorts = await db.select()
+    .from(generatedShorts)
+    .where(eq(generatedShorts.projectId, projectId))
+    .orderBy(asc(generatedShorts.orderIndex));
+
   return {
+    id: project.id,
+    title: project.title,
     status: project.status,
     progress: parseInt(project.progress),
     videoUrl: project.videoUrl,
+    transcript: project.transcript,
+    captions: project.captions,
+    shorts,
   };
 }

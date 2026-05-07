@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { doublePrecision, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(), // Clerk User ID
@@ -20,5 +20,21 @@ export const projects = pgTable("projects", {
   transcript: text('transcript'),
   captions: jsonb('captions'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const generatedShorts = pgTable("generated_shorts", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  title: text("title").notNull(),
+  startTime: doublePrecision("start_time").notNull(),
+  endTime: doublePrecision("end_time").notNull(),
+  duration: doublePrecision("duration").notNull(),
+  reason: text("reason").notNull(),
+  seoScore: integer("seo_score").notNull(),
+  captions: jsonb("captions").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
