@@ -3,6 +3,7 @@ import { inngest } from "@/lib/inngest/client";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
+import { aiArcjet, arcjetDeniedResponse, arcjetEnabled, estimateTokens } from "@/lib/arcjet";
 import { eq } from "drizzle-orm";
 
 function getErrorMessage(error: unknown) {
@@ -17,6 +18,18 @@ export async function POST(req: NextRequest) {
     const { projectId, s3Key, fileName } = await req.json();
     if (!projectId || !s3Key || !fileName) {
       return NextResponse.json({ error: "Missing processing metadata" }, { status: 400 });
+    }
+
+    if (arcjetEnabled) {
+      const decision = await aiArcjet.protect(req, {
+        userId: user.id,
+        requested: estimateTokens(`${fileName} ${s3Key}`),
+        detectPromptInjectionMessage: fileName,
+      });
+
+      if (decision.isDenied()) {
+        return arcjetDeniedResponse(decision);
+      }
     }
 
     const [project] = await db.select().from(projects).where(eq(projects.id, projectId));

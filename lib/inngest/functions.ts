@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { db } from "@/lib/db";
 import { generatedShorts, projects } from "@/lib/db/schema";
 import { SHORTS_GENERATION_CONFIG } from "@/lib/config/shorts";
+import { aiArcjet, arcjetEnabled, estimateTokens } from "@/lib/arcjet";
 import { eq, sql } from "drizzle-orm";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -228,7 +229,7 @@ async function ensureGeneratedShortsTable() {
   `);
 }
 
-async function generateShortMomentsWithGemini(transcriptText: string, captions: Caption[]) {
+async function generateShortMomentsWithGemini(transcriptText: string, captions: Caption[], userId: string) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set in environment variables");
   }
@@ -265,6 +266,29 @@ async function generateShortMomentsWithGemini(transcriptText: string, captions: 
     "Timestamped captions:",
     timestampedCaptions,
   ].join("\n");
+
+  if (arcjetEnabled) {
+    const decision = await aiArcjet.protect(
+      new Request("https://cliptic-engine.local/inngest/generate-shorts", { method: "POST" }),
+      {
+        userId,
+        requested: estimateTokens(prompt),
+        detectPromptInjectionMessage: timestampedCaptions,
+      }
+    );
+
+    if (decision.isDenied()) {
+      if (decision.reason.isPromptInjection()) {
+        throw new Error("Arcjet blocked prompt injection content in the transcript before Gemini.");
+      }
+
+      if (decision.reason.isRateLimit()) {
+        throw new Error("Arcjet blocked Gemini shorts generation because the AI usage budget was exceeded.");
+      }
+
+      throw new Error("Arcjet blocked Gemini shorts generation.");
+    }
+  }
 
   try {
     const response = await fetch(
@@ -416,7 +440,7 @@ export const processUploadedVideo = inngest.createFunction(
           })
           .where(eq(projects.id, projectId));
 
-        const selectedMoments = await generateShortMomentsWithGemini(transcriptText, captions);
+        const selectedMoments = await generateShortMomentsWithGemini(transcriptText, captions, userId);
         const rows = selectedMoments.map((moment, index) => ({
           id: generateId(),
           projectId,

@@ -3,8 +3,19 @@ import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { currentUser } from "@clerk/nextjs/server";
 import { s3Client, PutObjectCommand, getSignedUrl } from "@/lib/s3";
+import { arcjetDeniedResponse, arcjetEnabled, uploadArcjet } from "@/lib/arcjet";
+import { and, eq, gte } from "drizzle-orm";
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Failed to generate upload URL";
+}
+
+function startOfUtcDay() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,11 +24,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (arcjetEnabled) {
+      const decision = await uploadArcjet.protect(req, { userId: user.id });
+      if (decision.isDenied()) {
+        return arcjetDeniedResponse(decision);
+      }
+    }
+
     const body = await req.json();
     const { fileName, fileType } = body;
 
     if (!fileName || !fileType) {
       return NextResponse.json({ error: "Missing file metadata" }, { status: 400 });
+    }
+
+    const uploadedToday = await db.select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), gte(projects.createdAt, startOfUtcDay())));
+
+    if (uploadedToday.length >= 2) {
+      return NextResponse.json(
+        { error: "Daily limit reached", details: "You can upload only 2 videos per day. Please try again tomorrow." },
+        { status: 429 }
+      );
     }
 
     const projectId = generateId();
@@ -43,8 +72,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, projectId, uploadUrl, s3Key });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Failed to generate upload URL", details: error.message || String(error) }, { status: 500 });
+    return NextResponse.json({ error: "Failed to generate upload URL", details: getErrorMessage(error) }, { status: 500 });
   }
 }
