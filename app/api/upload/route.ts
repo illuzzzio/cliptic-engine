@@ -38,17 +38,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing file metadata" }, { status: 400 });
     }
 
-    const uploadedToday = await db.select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.userId, user.id), gte(projects.createdAt, startOfUtcDay())));
-
-    if (uploadedToday.length >= 2) {
-      return NextResponse.json(
-        { error: "Daily limit reached", details: "You can upload only 2 videos per day. Please try again tomorrow." },
-        { status: 429 }
-      );
-    }
-
     const projectId = generateId();
     const s3Key = `projects/${projectId}/${Date.now()}-${fileName.replace(/\s+/g, '-')}`;
 

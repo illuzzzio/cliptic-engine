@@ -15,7 +15,7 @@ export const uploadArcjet = arcjet({
       mode: "LIVE",
       characteristics: ["userId"],
       window: "1d",
-      max: 2,
+      max: 20,
     }),
   ],
 });

@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { generatedShorts, projects } from "@/lib/db/schema";
+import { GetObjectCommand, getSignedUrl, s3Client } from "@/lib/s3";
 import { asc, eq } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
@@ -37,4 +38,23 @@ export async function getProjectStatus(projectId: string) {
     captions: project.captions,
     shorts,
   };
+}
+
+export async function getProjectPlaybackUrl(projectId: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+  if (!project) throw new Error("Project not found");
+  if (project.userId !== user.id) throw new Error("Unauthorized");
+  if (!project.videoKey) throw new Error("Video is not ready for playback");
+
+  return getSignedUrl(
+    s3Client,
+    new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME || "cliptic-bucket",
+      Key: project.videoKey,
+    }),
+    { expiresIn: 1800 }
+  );
 }

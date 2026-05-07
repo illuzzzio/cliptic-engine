@@ -3,18 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getProjectStatus } from "@/lib/actions/project.actions";
-import { AlertCircle, Clock, Loader2, Mic, Play, Sparkles, CheckCircle2, UploadCloud } from "lucide-react";
+import { AlertCircle, Loader2, Mic, Sparkles, CheckCircle2, UploadCloud } from "lucide-react";
+import { RemotionShortPlayer } from "@/components/dashboard/RemotionShortPlayer";
 
 type ProjectStatus = Awaited<ReturnType<typeof getProjectStatus>>;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load project status";
-}
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 export default function ProjectProcessingPage() {
@@ -72,16 +67,30 @@ export default function ProjectProcessingPage() {
     { id: 4, title: "Finding Shorts", icon: <CheckCircle2 size={20} />, description: "Gemini is selecting high-retention clips" },
   ];
   const hasNoSpeech = project.status === "completed" && project.transcript?.startsWith("No speech was detected");
+  const hasClips = project.status === "completed" && project.shorts.length > 0;
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-12 px-6">
-      <div className="bg-[#111111] border border-[#2a2a2a] rounded-3xl p-12 relative overflow-hidden shadow-2xl">
+    <div className="w-full max-w-7xl mx-auto py-10 px-6">
+      <div className="bg-[#111111] border border-[#2a2a2a] rounded-2xl p-6 md:p-8 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF]" />
 
-        <h1 className="text-3xl font-black text-white mb-2">{project.title || "Processing video"}</h1>
-        <p className="text-[#6B6B6B] mb-6">Please wait while your video moves through the transcription and caption pipeline.</p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h1 className="text-3xl font-black text-white mb-2">{project.title || "Processing video"}</h1>
+            <p className="text-[#6B6B6B]">
+              {hasClips ? "Your short clips are ready to review." : "Please wait while your video moves through the transcription and caption pipeline."}
+            </p>
+          </div>
+          {hasClips && (
+            <span className="rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-4 py-2 text-sm font-bold text-[#00E5FF]">
+              {project.shorts.length} clips ready
+            </span>
+          )}
+        </div>
 
-        <div className="mb-12">
+        {!hasClips && (
+          <>
+        <div className="my-10">
           <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">
             <span>{project.status?.replace("_", " ") || "processing"}</span>
             <span className="text-[#00E5FF]">{project.progress || 0}%</span>
@@ -124,8 +133,10 @@ export default function ProjectProcessingPage() {
             );
           })}
         </div>
+          </>
+        )}
 
-        {project.status === "completed" && project.transcript && (
+        {project.status === "completed" && project.transcript && !hasClips && (
           <div className="mt-12 p-6 rounded-2xl bg-[#1a1a1a] border border-[#2a2a2a] shadow-inner">
             <h4 className="font-bold text-[#00E5FF] mb-3 flex items-center gap-2">
               <Sparkles size={16} />
@@ -140,62 +151,46 @@ export default function ProjectProcessingPage() {
           </div>
         )}
 
-        {project.status === "completed" && project.shorts.length > 0 && (
-          <div className="mt-8">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-2xl font-black text-white">Generated Clips</h2>
-              <span className="rounded-full border border-[#00E5FF]/30 bg-[#00E5FF]/10 px-3 py-1 text-sm font-bold text-[#00E5FF]">
-                {project.shorts.length} clips
-              </span>
-            </div>
+        {hasClips && (
+          <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {project.shorts.map((clip) => {
+              return (
+                <div key={clip.id} className="flex flex-col rounded-2xl border border-[#2a2a2a] bg-[#0c0c0c] overflow-hidden hover:border-[#B026FF]/50 transition-colors">
+                  <div className="p-0 flex-shrink-0">
+                    <RemotionShortPlayer
+                      clip={{
+                        id: clip.id,
+                        projectId: clip.projectId,
+                        title: clip.title,
+                        startTime: clip.startTime,
+                        endTime: clip.endTime,
+                        duration: clip.duration,
+                        captions: clip.captions,
+                      }}
+                    />
+                  </div>
 
-            <div className="grid gap-4">
-              {project.shorts.map((clip) => {
-                const captions = Array.isArray(clip.captions) ? clip.captions : [];
-                const captionPreview = captions
-                  .slice(0, 18)
-                  .map((caption) => {
-                    if (caption && typeof caption === "object" && "text" in caption) {
-                      return String(caption.text);
-                    }
-
-                    return "";
-                  })
-                  .filter(Boolean)
-                  .join(" ");
-
-                return (
-                  <div key={clip.id} className="rounded-2xl border border-[#2a2a2a] bg-[#111111] p-5">
-                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#00E5FF]">
-                          <Play size={16} />
-                          Clip {clip.orderIndex}
-                        </div>
-                        <h3 className="text-lg font-black text-white">{clip.title}</h3>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-[#2a2a2a] bg-black/40 px-3 py-1 text-sm font-bold text-[#a0a0a0]">
-                          <Clock size={14} />
-                          {formatTime(clip.startTime)} - {formatTime(clip.endTime)}
+                  <div className="flex flex-col gap-3 p-4 flex-grow">
+                    <div>
+                      <h3 className="text-lg font-black text-white line-clamp-2 mb-2">{clip.title}</h3>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="inline-flex items-center rounded-full border border-[#B026FF]/40 bg-[#B026FF]/10 px-2.5 py-1 text-xs font-bold text-[#B026FF]">
+                          30S CLIP
                         </span>
-                        <span className="rounded-full border border-[#B026FF]/30 bg-[#B026FF]/10 px-3 py-1 text-sm font-bold text-[#B026FF]">
-                          SEO {clip.seoScore}/100
+                        <span className="inline-flex items-center rounded-full border border-[#00E5FF]/40 bg-[#00E5FF]/10 px-2.5 py-1 text-xs font-bold text-[#00E5FF]">
+                          SEO {clip.seoScore}
                         </span>
                       </div>
                     </div>
 
-                    <p className="mb-4 text-sm leading-relaxed text-[#a0a0a0]">{clip.reason}</p>
-
-                    {captionPreview && (
-                      <p className="rounded-xl bg-black/50 p-4 text-sm leading-relaxed text-[#d0d0d0]">
-                        {captionPreview}
-                      </p>
-                    )}
+                    <div className="border-t border-[#2a2a2a] pt-3">
+                      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">⚡ AI Rationale</h4>
+                      <p className="text-xs leading-relaxed text-[#a0a0a0] line-clamp-4">{clip.reason}</p>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
