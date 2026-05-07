@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getProjectStatus } from "@/lib/actions/project.actions";
+import { getProjectPlaybackUrl, getProjectStatus } from "@/lib/actions/project.actions";
 import { AlertCircle, Loader2, Mic, Sparkles, CheckCircle2, UploadCloud } from "lucide-react";
 import { RemotionShortPlayer } from "@/components/dashboard/RemotionShortPlayer";
+import { ShortClipEditorDialog } from "@/components/dashboard/ShortClipEditorDialog";
 
 type ProjectStatus = Awaited<ReturnType<typeof getProjectStatus>>;
 
@@ -18,6 +19,9 @@ export default function ProjectProcessingPage() {
 
   const [project, setProject] = useState<ProjectStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -68,6 +72,7 @@ export default function ProjectProcessingPage() {
   ];
   const hasNoSpeech = project.status === "completed" && project.transcript?.startsWith("No speech was detected");
   const hasClips = project.status === "completed" && project.shorts.length > 0;
+  const selectedClip = project.shorts.find((clip) => clip.id === selectedClipId) ?? null;
 
   return (
     <div className="w-full max-w-7xl mx-auto py-10 px-6">
@@ -152,7 +157,7 @@ export default function ProjectProcessingPage() {
         )}
 
         {hasClips && (
-          <div className="mt-8 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-8 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {project.shorts.map((clip) => {
               return (
                 <div key={clip.id} className="flex flex-col rounded-2xl border border-[#2a2a2a] bg-[#0c0c0c] overflow-hidden hover:border-[#B026FF]/50 transition-colors">
@@ -166,6 +171,9 @@ export default function ProjectProcessingPage() {
                         endTime: clip.endTime,
                         duration: clip.duration,
                         captions: clip.captions,
+                        captionStyleKey: clip.captionStyleKey,
+                        captionFontFamily: clip.captionFontFamily,
+                        captionSize: clip.captionSize,
                       }}
                     />
                   </div>
@@ -187,12 +195,74 @@ export default function ProjectProcessingPage() {
                       <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">⚡ Cliptic Reasoning</h4>
                       <p className="text-xs leading-relaxed text-[#a0a0a0] line-clamp-4">{clip.reason}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setSelectedClipId(clip.id);
+                        try {
+                          const url = await getProjectPlaybackUrl(clip.projectId);
+                          setEditorPreviewUrl(url);
+                        } catch {
+                          setEditorPreviewUrl(null);
+                        }
+                        setIsEditorOpen(true);
+                      }}
+                      className="mt-auto w-full rounded-xl border border-[#B026FF]/60 bg-[#B026FF]/15 px-4 py-2 text-sm font-bold text-[#EAC8FF] transition hover:border-[#00E5FF]/70 hover:bg-[#00E5FF]/15 hover:text-white"
+                    >
+                      Edit
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+
+        <ShortClipEditorDialog
+          key={selectedClipId ?? "no-clip-selected"}
+          open={isEditorOpen}
+          onOpenChange={(open) => {
+            setIsEditorOpen(open);
+            if (!open) {
+              setEditorPreviewUrl(null);
+            }
+          }}
+          clip={
+            selectedClip
+              ? {
+                  id: selectedClip.id,
+                  projectId: selectedClip.projectId,
+                  title: selectedClip.title,
+                  startTime: selectedClip.startTime,
+                  endTime: selectedClip.endTime,
+                  duration: selectedClip.duration,
+                  captions: selectedClip.captions,
+                  captionStyleKey: selectedClip.captionStyleKey,
+                  captionFontFamily: selectedClip.captionFontFamily,
+                  captionSize: selectedClip.captionSize,
+                }
+              : null
+          }
+          previewVideoUrl={editorPreviewUrl}
+          onSaved={({ shortId, captionStyleKey, captionFontFamily, captionSize }) => {
+            setProject((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                shorts: prev.shorts.map((short) =>
+                  short.id === shortId
+                    ? {
+                        ...short,
+                        captionStyleKey,
+                        captionFontFamily,
+                        captionSize,
+                      }
+                    : short
+                ),
+              };
+            });
+          }}
+        />
 
         {project.status === "failed" && (
           <div className="mt-12 rounded-2xl border border-red-500/30 bg-red-500/10 p-6">

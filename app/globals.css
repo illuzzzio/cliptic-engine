@@ -179,3 +179,26 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.cliptic-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(148, 148, 148, 0.85) rgba(255, 255, 255, 0.08);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.cliptic-scrollbar::-webkit-scrollbar {
+  width: 12px;
+}
+
+.cliptic-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+
+.cliptic-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(145, 145, 145, 0.9);
+  border-radius: 9999px;
+  border: 2px solid rgba(20, 20, 20, 0.9);
+}
