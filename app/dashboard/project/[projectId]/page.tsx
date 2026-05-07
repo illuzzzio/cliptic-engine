@@ -152,7 +152,7 @@ export default function ProjectProcessingPage() {
         )}
 
         {hasClips && (
-          <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-8 grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {project.shorts.map((clip) => {
               return (
                 <div key={clip.id} className="flex flex-col rounded-2xl border border-[#2a2a2a] bg-[#0c0c0c] overflow-hidden hover:border-[#B026FF]/50 transition-colors">
@@ -184,7 +184,7 @@ export default function ProjectProcessingPage() {
                     </div>
 
                     <div className="border-t border-[#2a2a2a] pt-3">
-                      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">⚡ AI Rationale</h4>
+                      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">⚡ Cliptic Reasoning</h4>
                       <p className="text-xs leading-relaxed text-[#a0a0a0] line-clamp-4">{clip.reason}</p>
                     </div>
                   </div>

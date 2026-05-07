@@ -36,7 +36,18 @@ export function RemotionShortPlayer({ clip }: { clip: ShortClip }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const captions = captionsFromJson(clip.captions);
+  const activeCaption = getActiveCaption(captions, clip.startTime + currentTime);
+
+  const getDisplayWords = (text?: string) => {
+    if (!text) return [];
+    return text.split(/\s+/).slice(0, 3);
+  };
+
+  const displayWords = getDisplayWords(activeCaption?.text);
 
   const loadPreview = async () => {
     if (videoUrl || isLoading) return;
@@ -62,6 +73,7 @@ export function RemotionShortPlayer({ clip }: { clip: ShortClip }) {
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
+    setCurrentTime(videoRef.current.currentTime);
     if (videoRef.current.currentTime >= clip.endTime) {
       videoRef.current.pause();
     }
@@ -93,7 +105,7 @@ export function RemotionShortPlayer({ clip }: { clip: ShortClip }) {
 
   return (
     <div className="space-y-0 w-full">
-      <div className="overflow-hidden rounded-none bg-black w-full">
+      <div className="relative overflow-hidden rounded-none bg-black w-full aspect-[9/16]">
         <video
           ref={videoRef}
           src={videoUrl}
@@ -102,6 +114,22 @@ export function RemotionShortPlayer({ clip }: { clip: ShortClip }) {
           onLoadedMetadata={handleLoadedMetadata}
           onTimeUpdate={handleTimeUpdate}
         />
+        
+        {displayWords.length > 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-end pb-20 pointer-events-none z-50">
+            <div className="text-center">
+              {displayWords.map((word, idx) => (
+                <span key={idx} className={`inline-block text-4xl font-black leading-tight mx-1 ${
+                  idx === 0 
+                    ? 'bg-yellow-300 text-black px-3 py-1 rounded-lg' 
+                    : 'text-yellow-300'
+                }`}>
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
