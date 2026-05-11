@@ -185,7 +185,10 @@ function buildFallbackShortMoments(captions: Caption[]) {
     Math.max(SHORTS_GENERATION_CONFIG.minDurationSeconds, Math.floor(duration / Math.max(SHORTS_GENERATION_CONFIG.count, 1)))
   );
   const availableWindow = Math.max(0, duration - targetDuration);
-  const count = Math.min(SHORTS_GENERATION_CONFIG.count, Math.max(1, Math.floor(duration / SHORTS_GENERATION_CONFIG.minDurationSeconds)));
+  const count = Math.max(
+    SHORTS_GENERATION_CONFIG.minimumCount,
+    Math.min(SHORTS_GENERATION_CONFIG.count, Math.floor(duration / SHORTS_GENERATION_CONFIG.minDurationSeconds))
+  );
 
   return Array.from({ length: count }).map((_, index) => {
     const startTime = count === 1 ? 0 : (availableWindow / Math.max(count - 1, 1)) * index;
@@ -285,7 +288,7 @@ async function generateShortMomentsWithGemini(transcriptText: string, captions: 
 
   const prompt = [
     `You are an expert short-form video strategist.`,
-    `Find exactly ${SHORTS_GENERATION_CONFIG.count} highly engaging short video moments from this long video transcript.`,
+    `Find between ${SHORTS_GENERATION_CONFIG.minimumCount} and ${SHORTS_GENERATION_CONFIG.count} highly engaging short video moments from this long video transcript.`,
     `Each short must be between ${SHORTS_GENERATION_CONFIG.minDurationSeconds} and ${SHORTS_GENERATION_CONFIG.maxDurationSeconds} seconds.`,
     `The source video is about ${Math.round(duration)} seconds long.`,
     `Prefer emotional hooks, surprising claims, clear teaching moments, conflict, strong opinions, or complete mini-stories.`,

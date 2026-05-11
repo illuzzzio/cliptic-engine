@@ -4,8 +4,8 @@ function readPositiveInteger(value: string | undefined, fallback: number) {
 }
 
 export const SHORTS_GENERATION_CONFIG = {
-  count: readPositiveInteger(process.env.SHORTS_GENERATION_COUNT, 6),
-  minimumCount: readPositiveInteger(process.env.SHORTS_GENERATION_MIN_COUNT, 5),
+  count: readPositiveInteger(process.env.SHORTS_GENERATION_COUNT, 5),
+  minimumCount: readPositiveInteger(process.env.SHORTS_GENERATION_MIN_COUNT, 2),
   minDurationSeconds: 30,
   maxDurationSeconds: 90,
   geminiModel: process.env.GEMINI_MODEL || "gemini-3-flash-preview",

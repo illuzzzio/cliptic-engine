@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Play } from "lucide-react";
 import { getProjectPlaybackUrl } from "@/lib/actions/project.actions";
 import { Player } from "@remotion/player";
@@ -95,6 +95,8 @@ type RemotionShortPlayerProps = {
   autoPlay?: boolean;
   muted?: boolean;
   initialVideoUrl?: string | null;
+  /** When true, pause this player (used to mute grid players when editor opens) */
+  paused?: boolean;
 };
 
 export function RemotionShortPlayer({
@@ -105,7 +107,9 @@ export function RemotionShortPlayer({
   autoPlay = false,
   muted = false,
   initialVideoUrl = null,
+  paused = false,
 }: RemotionShortPlayerProps) {
+  const playerRef = useRef<import("@remotion/player").PlayerRef>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(initialVideoUrl);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +118,17 @@ export function RemotionShortPlayer({
   const selectedCaptionSize = captionSize ?? clip.captionSize ?? DEFAULT_CAPTION_SIZE;
   const fps = 30;
   const durationInFrames = useMemo(() => Math.max(1, Math.floor((clip.endTime - clip.startTime) * fps)), [clip.endTime, clip.startTime]);
+
+  // Pause/resume when parent signals editor opened/closed
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (paused) {
+      player.pause();
+    } else {
+      // Only resume if it was playing before; don't force-play silent cards
+    }
+  }, [paused]);
 
   const loadPreview = useCallback(async () => {
     if (videoUrl || isLoading) return;
@@ -151,6 +166,7 @@ export function RemotionShortPlayer({
   return (
     <div className="w-full h-full flex items-center justify-center">
       <Player
+        ref={playerRef}
         component={ClipComposition}
         durationInFrames={durationInFrames}
         fps={fps}

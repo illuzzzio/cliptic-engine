@@ -54,6 +54,66 @@ export const CAPTION_STYLE_PRESETS: CaptionStyleDefinition[] = [
     wordClassName: "font-black text-[#FFD7A3] leading-tight mx-1",
     highlightedWordClassName: "rounded-lg bg-[#ff6a00] px-3 py-1 font-black text-white leading-tight mx-1",
   },
+  {
+    key: "purple-glow",
+    name: "Purple Glow",
+    description: "Electric violet with glow highlight",
+    accentClassName: "from-[#2d0059]/80 via-[#7000FF]/70 to-[#c084fc]/70 border-[#B026FF]/60",
+    cardPreviewClassName: "text-[#c084fc] [text-shadow:_0_0_10px_rgba(176,38,255,0.95)]",
+    containerClassName: "rounded-xl bg-black/40 px-3 py-2 shadow-[0_0_24px_rgba(176,38,255,0.25)]",
+    wordClassName: "text-4xl font-black text-[#e9d5ff] [text-shadow:_0_0_8px_rgba(176,38,255,0.8)] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg bg-[#7000FF] px-3 py-1 text-4xl font-black text-white [text-shadow:_0_0_8px_rgba(176,38,255,0.8)] leading-tight mx-1",
+  },
+  {
+    key: "fire-red",
+    name: "Fire Red",
+    description: "Bold red energy for high-impact clips",
+    accentClassName: "from-[#4d0000]/80 via-[#cc0000]/70 to-[#ff6b6b]/70 border-[#ff3333]/60",
+    cardPreviewClassName: "text-[#ff6b6b]",
+    containerClassName: "rounded-xl bg-black/50 px-3 py-2 shadow-[0_0_24px_rgba(255,50,50,0.2)]",
+    wordClassName: "text-4xl font-black text-[#ffb3b3] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg bg-[#cc0000] px-3 py-1 text-4xl font-black text-white leading-tight mx-1",
+  },
+  {
+    key: "green-matrix",
+    name: "Green Matrix",
+    description: "Hacker-style lime green on dark",
+    accentClassName: "from-[#001a00]/80 via-[#00aa44]/70 to-[#39ff14]/70 border-[#00ff66]/60",
+    cardPreviewClassName: "text-[#39ff14] [text-shadow:_0_0_10px_rgba(57,255,20,0.9)]",
+    containerClassName: "rounded-xl bg-black/60 px-3 py-2 shadow-[0_0_24px_rgba(57,255,20,0.2)]",
+    wordClassName: "text-4xl font-black text-[#a3ffb0] [text-shadow:_0_0_8px_rgba(57,255,20,0.7)] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg border border-[#39ff14] bg-[#39ff14]/15 px-3 py-1 text-4xl font-black text-[#39ff14] [text-shadow:_0_0_10px_rgba(57,255,20,0.9)] leading-tight mx-1",
+  },
+  {
+    key: "gold-luxury",
+    name: "Gold Luxury",
+    description: "Premium gold badge on dark background",
+    accentClassName: "from-[#3d2d00]/80 via-[#c9a227]/70 to-[#ffd700]/70 border-[#ffd700]/60",
+    cardPreviewClassName: "text-[#ffd700] [text-shadow:_0_0_8px_rgba(255,215,0,0.7)]",
+    containerClassName: "rounded-xl bg-[#1a1200]/80 px-3 py-2 border border-[#ffd700]/20",
+    wordClassName: "text-4xl font-black text-[#ffe566] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg bg-[#c9a227] px-3 py-1 text-4xl font-black text-black leading-tight mx-1",
+  },
+  {
+    key: "pink-pop",
+    name: "Pink Pop",
+    description: "Bubbly hot pink for trendy content",
+    accentClassName: "from-[#4d0026]/80 via-[#e91e8c]/70 to-[#ff80c0]/70 border-[#ff4db8]/60",
+    cardPreviewClassName: "text-[#ff80c0]",
+    containerClassName: "rounded-xl bg-black/45 px-3 py-2 shadow-[0_0_24px_rgba(233,30,140,0.2)]",
+    wordClassName: "text-4xl font-black text-[#ffb3d9] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg bg-[#e91e8c] px-3 py-1 text-4xl font-black text-white leading-tight mx-1",
+  },
+  {
+    key: "ice-blue",
+    name: "Ice Blue",
+    description: "Cool frosted glass look",
+    accentClassName: "from-[#001833]/80 via-[#0066cc]/70 to-[#99ccff]/70 border-[#66b3ff]/60",
+    cardPreviewClassName: "text-[#99ccff]",
+    containerClassName: "rounded-xl bg-[#001020]/70 px-3 py-2 border border-[#0066cc]/30 backdrop-blur",
+    wordClassName: "text-4xl font-black text-[#cce5ff] leading-tight mx-1",
+    highlightedWordClassName: "rounded-lg bg-[#0066cc] px-3 py-1 text-4xl font-black text-white leading-tight mx-1",
+  },
 ];
 
 export const CAPTION_FONT_OPTIONS = [
@@ -69,7 +129,7 @@ export const CAPTION_FONT_OPTIONS = [
   "Playfair Display, serif",
 ];
 
-export const CAPTION_SIZE_OPTIONS = [4.5, 4, 3, 5, 2, 1];
+export const CAPTION_SIZE_OPTIONS = [1, 2, 3, 4, 5];
 
 export function resolveCaptionStyle(styleKey?: string | null): CaptionStyleDefinition {
   return CAPTION_STYLE_PRESETS.find((style) => style.key === styleKey) ?? CAPTION_STYLE_PRESETS[0];
