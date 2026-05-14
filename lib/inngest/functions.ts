@@ -7,6 +7,12 @@ import { eq, sql } from "drizzle-orm";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { DeepgramClient } from "@deepgram/sdk";
+import { getRenderProgress, renderMediaOnLambda, type AwsRegion } from "@remotion/lambda-client";
+import {
+  DEFAULT_CAPTION_FONT_FAMILY,
+  DEFAULT_CAPTION_SIZE,
+  DEFAULT_CAPTION_STYLE_KEY,
+} from "@/lib/config/caption-styles";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -28,6 +34,11 @@ type ProcessVideoEvent = {
   projectId: string;
   s3Key: string;
   fileName: string;
+  userId: string;
+};
+
+type RenderShortEvent = {
+  shortId: string;
   userId: string;
 };
 
@@ -259,11 +270,21 @@ async function ensureGeneratedShortsTable() {
       "caption_style_key" text DEFAULT 'highlight-first-word',
       "caption_font_family" text DEFAULT 'Inter, sans-serif',
       "caption_size" double precision DEFAULT 4.5,
+      "export_url" text,
+      "render_id" text,
+      "render_bucket_name" text,
+      "render_status" text DEFAULT 'idle',
+      "render_progress" double precision DEFAULT 0,
       "order_index" integer NOT NULL,
       "created_at" timestamp DEFAULT now() NOT NULL,
       "updated_at" timestamp DEFAULT now() NOT NULL
     )
   `);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "export_url" text`);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_id" text`);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_bucket_name" text`);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_status" text DEFAULT 'idle'`);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_progress" double precision DEFAULT 0`);
 }
 
 async function generateShortMomentsWithGemini(transcriptText: string, captions: Caption[], userId: string) {
@@ -529,6 +550,238 @@ export const processUploadedVideo = inngest.createFunction(
             updatedAt: new Date(),
           })
           .where(eq(projects.id, projectId));
+      });
+
+      throw error;
+    }
+  }
+);
+
+function getRemotionLambdaConfig() {
+  const region = (process.env.REMOTION_AWS_REGION || process.env.AWS_REGION || "us-east-1") as AwsRegion;
+  const functionName = process.env.REMOTION_LAMBDA_FUNCTION_NAME;
+  const serveUrl = process.env.REMOTION_SERVE_URL || process.env.REMOTION_SITE_URL;
+  const bucketName = process.env.REMOTION_BUCKET_NAME;
+
+  if (!functionName) {
+    throw new Error("REMOTION_LAMBDA_FUNCTION_NAME is not set in environment variables");
+  }
+
+  if (!serveUrl) {
+    throw new Error("REMOTION_SERVE_URL or REMOTION_SITE_URL is not set in environment variables");
+  }
+
+  return { region, functionName, serveUrl, bucketName };
+}
+
+function getShortClipDurationInFrames(clip: { startTime: number; endTime: number }, fps = 30) {
+  return Math.max(1, Math.floor((clip.endTime - clip.startTime) * fps));
+}
+
+function getRenderErrorMessage(progress: Awaited<ReturnType<typeof getRenderProgress>>) {
+  const firstError = progress.errors?.[0];
+  if (!firstError) return "Remotion Lambda render failed.";
+  if ("message" in firstError && typeof firstError.message === "string") return firstError.message;
+  return "Remotion Lambda render failed.";
+}
+
+export const renderShortClipVideo = inngest.createFunction(
+  {
+    id: "render-short-clip-video",
+    triggers: [{ event: "short.render" }],
+  },
+  async ({ event, step }) => {
+    const { shortId, userId } = event.data as RenderShortEvent;
+    const { region, functionName, serveUrl, bucketName } = getRemotionLambdaConfig();
+
+    try {
+      const { short, project, signedVideoUrl } = await step.run("load-short-and-source-video", async () => {
+        await ensureGeneratedShortsTable();
+
+        const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
+        if (!short) throw new Error("Short clip not found");
+        if (short.userId !== userId) throw new Error("Unauthorized render request");
+        if (short.renderStatus === "canceled") return { short, project: null, signedVideoUrl: null };
+
+        const [project] = await db.select().from(projects).where(eq(projects.id, short.projectId));
+        if (!project) throw new Error("Project not found");
+        if (project.userId !== userId) throw new Error("Unauthorized render request");
+        if (!project.videoKey) throw new Error("Source video is not ready for rendering");
+
+        const signedVideoUrl = await getSignedUrl(
+          s3Client,
+          new GetObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME || "cliptic-bucket",
+            Key: project.videoKey,
+          }),
+          { expiresIn: 604800 }
+        );
+
+        await db
+          .update(generatedShorts)
+          .set({
+            exportUrl: null,
+            renderStatus: "rendering",
+            renderProgress: 5,
+            updatedAt: new Date(),
+          })
+          .where(eq(generatedShorts.id, shortId));
+
+        return { short, project, signedVideoUrl };
+      });
+
+      if (!project || !signedVideoUrl) {
+        return {
+          success: false,
+          shortId,
+          canceled: true,
+        };
+      }
+
+      const renderStart = await step.run("start-or-resume-remotion-lambda-render", async () => {
+        if (short.renderId && short.renderBucketName) {
+          return {
+            renderId: short.renderId,
+            bucketName: short.renderBucketName,
+          };
+        }
+
+        const durationInFrames = getShortClipDurationInFrames(short, 30);
+        const output = await renderMediaOnLambda({
+          region,
+          functionName,
+          serveUrl,
+          composition: "ShortClip",
+          codec: "h264",
+          imageFormat: "jpeg",
+          forceBucketName: bucketName,
+          privacy: "public",
+          framesPerLambda: 60,
+          forceDurationInFrames: durationInFrames,
+          audioCodec: "aac",
+          muted: false,
+          outName: `short-renders/${short.id}-${Date.now()}.mp4`,
+          inputProps: {
+            videoUrl: signedVideoUrl,
+            clip: {
+              id: short.id,
+              projectId: short.projectId,
+              title: short.title,
+              startTime: short.startTime,
+              endTime: short.endTime,
+              duration: short.duration,
+              captions: short.captions,
+              captionStyleKey: short.captionStyleKey ?? DEFAULT_CAPTION_STYLE_KEY,
+              captionFontFamily: short.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY,
+              captionSize: short.captionSize ?? DEFAULT_CAPTION_SIZE,
+            },
+            captionStyleKey: short.captionStyleKey ?? DEFAULT_CAPTION_STYLE_KEY,
+            captionFontFamily: short.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY,
+            captionSize: short.captionSize ?? DEFAULT_CAPTION_SIZE,
+          },
+        });
+
+        await db
+          .update(generatedShorts)
+          .set({
+            renderId: output.renderId,
+            renderBucketName: output.bucketName,
+            renderStatus: "rendering",
+            renderProgress: 8,
+            updatedAt: new Date(),
+          })
+          .where(eq(generatedShorts.id, shortId));
+
+        return output;
+      });
+
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        await step.sleep(`wait-before-render-progress-${attempt}`, "5s");
+
+        const progress = await step.run(`poll-render-progress-${attempt}`, async () => {
+          const [latestShort] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
+          if (latestShort?.renderStatus === "canceled") {
+            return {
+              canceled: true,
+              done: false,
+              outputFile: null,
+              progress: 0,
+            };
+          }
+
+          const progress = await getRenderProgress({
+            region,
+            functionName,
+            bucketName: renderStart.bucketName,
+            renderId: renderStart.renderId,
+          });
+
+          const normalizedProgress = Math.max(8, Math.min(99, Math.round(progress.overallProgress * 100)));
+
+          if (progress.fatalErrorEncountered) {
+            await db
+              .update(generatedShorts)
+              .set({
+                renderStatus: "failed",
+                renderProgress: normalizedProgress,
+                updatedAt: new Date(),
+              })
+              .where(eq(generatedShorts.id, shortId));
+            throw new Error(getRenderErrorMessage(progress));
+          }
+
+          await db
+            .update(generatedShorts)
+            .set({
+              renderStatus: progress.done ? "completed" : "rendering",
+              renderProgress: progress.done ? 100 : normalizedProgress,
+              exportUrl: progress.done ? progress.outputFile : null,
+              updatedAt: new Date(),
+            })
+            .where(eq(generatedShorts.id, shortId));
+
+          return {
+            canceled: false,
+            done: progress.done,
+            outputFile: progress.outputFile,
+            progress: normalizedProgress,
+          };
+        });
+
+        if (progress.canceled) {
+          return {
+            success: false,
+            shortId,
+            projectId: project.id,
+            canceled: true,
+          };
+        }
+
+        if (progress.done) {
+          if (!progress.outputFile) {
+            throw new Error("Remotion Lambda completed without an output URL.");
+          }
+
+          return {
+            success: true,
+            shortId,
+            projectId: project.id,
+            exportUrl: progress.outputFile,
+          };
+        }
+      }
+
+      throw new Error("Timed out waiting for Remotion Lambda render to finish.");
+    } catch (error: unknown) {
+      await step.run("mark-short-render-failed", async () => {
+        await db
+          .update(generatedShorts)
+          .set({
+            renderStatus: "failed",
+            renderProgress: 100,
+            updatedAt: new Date(),
+          })
+          .where(eq(generatedShorts.id, shortId));
       });
 
       throw error;

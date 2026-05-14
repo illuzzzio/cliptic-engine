@@ -1,16 +1,34 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getProjectPlaybackUrl, getProjectStatus } from "@/lib/actions/project.actions";
-import { AlertCircle, Loader2, Mic, Sparkles, CheckCircle2, UploadCloud } from "lucide-react";
+import {
+  cancelShortClipRender,
+  getProjectPlaybackUrl,
+  getProjectStatus,
+  getShortClipRenderStatus,
+  startShortClipDownload,
+} from "@/lib/actions/project.actions";
+import { AlertCircle, CheckCircle2, Download, Loader2, Mic, Sparkles, UploadCloud } from "lucide-react";
 import { RemotionShortPlayer } from "@/components/dashboard/RemotionShortPlayer";
 import { ShortClipEditorDialog } from "@/components/dashboard/ShortClipEditorDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 type ProjectStatus = Awaited<ReturnType<typeof getProjectStatus>>;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Could not load project status";
+}
+
+function downloadUrl(url: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export default function ProjectProcessingPage() {
@@ -22,6 +40,12 @@ export default function ProjectProcessingPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
+  const [renderDialogOpen, setRenderDialogOpen] = useState(false);
+  const [renderingShortId, setRenderingShortId] = useState<string | null>(null);
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderMessage, setRenderMessage] = useState("Preparing render");
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [isCancelingRender, setIsCancelingRender] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -44,6 +68,121 @@ export default function ProjectProcessingPage() {
 
     return () => clearInterval(interval);
   }, [projectId]);
+
+  const syncShortRenderState = useCallback((shortId: string, status: string, progress: number, exportUrl: string | null) => {
+    setProject((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        shorts: prev.shorts.map((short) =>
+          short.id === shortId
+            ? {
+                ...short,
+                renderStatus: status,
+                renderProgress: progress,
+                exportUrl,
+              }
+            : short
+        ),
+      };
+    });
+  }, []);
+
+  const handleDownload = useCallback(
+    async (shortId: string) => {
+      setRenderingShortId(shortId);
+      setRenderError(null);
+      setRenderProgress(0);
+      setRenderMessage("Checking export status");
+
+      try {
+        const result = await startShortClipDownload(shortId);
+        syncShortRenderState(shortId, result.status, result.progress, result.exportUrl);
+
+        if (result.exportUrl) {
+          downloadUrl(result.exportUrl);
+          setRenderingShortId(null);
+          return;
+        }
+
+        setRenderProgress(result.progress);
+        setRenderMessage(result.message);
+        setRenderDialogOpen(true);
+      } catch (err: unknown) {
+        setRenderDialogOpen(true);
+        setRenderError(getErrorMessage(err));
+        setRenderMessage("Render could not start");
+      }
+    },
+    [syncShortRenderState]
+  );
+
+  const handleCancelRender = useCallback(async () => {
+    if (!renderingShortId) {
+      setRenderDialogOpen(false);
+      return;
+    }
+
+    const shortId = renderingShortId;
+    setIsCancelingRender(true);
+    setRenderMessage("Canceling render");
+    setRenderDialogOpen(false);
+    setRenderingShortId(null);
+    setRenderError(null);
+    setRenderProgress(0);
+    syncShortRenderState(shortId, "canceled", 0, null);
+
+    try {
+      const result = await cancelShortClipRender(shortId);
+      syncShortRenderState(shortId, result.status, result.progress, result.exportUrl);
+    } catch (err: unknown) {
+      setRenderDialogOpen(true);
+      setRenderingShortId(shortId);
+      setRenderError(getErrorMessage(err));
+    } finally {
+      setIsCancelingRender(false);
+    }
+  }, [renderingShortId, syncShortRenderState]);
+
+  useEffect(() => {
+    if (!renderDialogOpen || !renderingShortId || renderError) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const result = await getShortClipRenderStatus(renderingShortId);
+        if (cancelled) return;
+
+        setRenderProgress(result.progress);
+        setRenderMessage(result.message);
+        syncShortRenderState(renderingShortId, result.status, result.progress, result.exportUrl);
+
+        if (result.status === "completed" && result.exportUrl) {
+          downloadUrl(result.exportUrl);
+          setRenderMessage("Render complete. Starting download...");
+          window.setTimeout(() => {
+            if (!cancelled) {
+              setRenderDialogOpen(false);
+              setRenderingShortId(null);
+            }
+          }, 1200);
+        }
+
+        if (result.status === "failed") {
+          setRenderError("Rendering failed. Please try again.");
+        }
+      } catch (err: unknown) {
+        if (!cancelled) setRenderError(getErrorMessage(err));
+      }
+    };
+
+    poll();
+    const interval = window.setInterval(poll, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [renderDialogOpen, renderingShortId, renderError, syncShortRenderState]);
 
   if (error) {
     return <div className="p-8 text-red-500">Error: {error}</div>;
@@ -211,6 +350,15 @@ export default function ProjectProcessingPage() {
                     >
                       Edit
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(clip.id)}
+                      disabled={renderingShortId === clip.id}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#00E5FF]/60 bg-[#00E5FF]/10 px-4 py-2 text-sm font-bold text-[#BDF7FF] transition hover:border-[#B026FF]/70 hover:bg-[#B026FF]/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {renderingShortId === clip.id ? <Loader2 className="animate-[spin_2s_linear_infinite]" size={15} /> : <Download size={15} />}
+                      {clip.exportUrl && clip.renderStatus === "completed" ? "Download" : "Render & Download"}
+                    </button>
                   </div>
                 </div>
               );
@@ -256,6 +404,10 @@ export default function ProjectProcessingPage() {
                         captionStyleKey,
                         captionFontFamily,
                         captionSize,
+                        exportUrl: null,
+                        renderId: null,
+                        renderStatus: "idle",
+                        renderProgress: 0,
                       }
                     : short
                 ),
@@ -263,6 +415,51 @@ export default function ProjectProcessingPage() {
             });
           }}
         />
+
+        <Dialog
+          open={renderDialogOpen}
+          onOpenChange={(open) => {
+            if (!open && renderingShortId && renderProgress < 100 && !renderError) {
+              void handleCancelRender();
+              return;
+            }
+
+            setRenderDialogOpen(open);
+            if (!open) {
+              setRenderingShortId(null);
+              setRenderError(null);
+            }
+          }}
+        >
+          <DialogContent className="border border-white/10 bg-[#0a0a0a] text-white shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-white">Rendering Short Clip</DialogTitle>
+              <DialogDescription className="text-[#8a8a8a]">
+                Remotion Lambda is exporting the edited clip. The download will start automatically when it is ready.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#777]">
+                <span>{renderError ? "Render failed" : renderMessage}</span>
+                <span className="text-[#00E5FF]">{Math.min(renderProgress, 100)}%</span>
+              </div>
+              <Progress value={Math.min(renderProgress, 100)} className="[&_[data-slot=progress-track]]:h-3 [&_[data-slot=progress-track]]:bg-[#1a1a1a] [&_[data-slot=progress-track]]:border [&_[data-slot=progress-track]]:border-white/10 [&_[data-slot=progress-indicator]]:bg-gradient-to-r [&_[data-slot=progress-indicator]]:from-[#7000FF] [&_[data-slot=progress-indicator]]:via-[#B026FF] [&_[data-slot=progress-indicator]]:to-[#00E5FF]" />
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-[#aaa]">
+                {renderError ? renderError : "You can keep this dialog open while the render is queued, encoded, and saved back to this clip."}
+              </div>
+              {!renderError && (
+                <button
+                  type="button"
+                  onClick={() => void handleCancelRender()}
+                  disabled={isCancelingRender}
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-bold text-[#ddd] transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCancelingRender ? "Canceling..." : "Cancel Render"}
+                </button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {project.status === "failed" && (
           <div className="mt-12 rounded-2xl border border-red-500/30 bg-red-500/10 p-6">

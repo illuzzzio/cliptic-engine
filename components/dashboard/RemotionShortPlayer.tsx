@@ -4,19 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Loader2, Play } from "lucide-react";
 import { getProjectPlaybackUrl } from "@/lib/actions/project.actions";
 import { Player } from "@remotion/player";
-import { AbsoluteFill, Html5Video, useCurrentFrame, useVideoConfig } from "remotion";
 import {
   DEFAULT_CAPTION_SIZE,
   DEFAULT_CAPTION_FONT_FAMILY,
   DEFAULT_CAPTION_STYLE_KEY,
-  resolveCaptionStyle,
 } from "@/lib/config/caption-styles";
-
-type Caption = {
-  text?: string;
-  start?: number;
-  end?: number;
-};
+import { ShortClipComposition, getShortClipDurationInFrames } from "@/components/remotion/ShortClipComposition";
 
 export type ShortClip = {
   id: string;
@@ -30,62 +23,6 @@ export type ShortClip = {
   captionFontFamily?: string | null;
   captionSize?: number | null;
 };
-
-function captionsFromJson(captions: unknown): Caption[] {
-  return Array.isArray(captions) ? captions as Caption[] : [];
-}
-
-function getActiveCaption(captions: Caption[], absoluteTime: number) {
-  return captions.find((caption) => {
-    const start = caption.start ?? 0;
-    const end = caption.end ?? start;
-    return absoluteTime >= start && absoluteTime <= end;
-  });
-}
-
-function ClipComposition({
-  videoUrl,
-  clip,
-  captionStyleKey,
-  captionFontFamily,
-  captionSize,
-}: {
-  videoUrl: string;
-  clip: ShortClip;
-  captionStyleKey: string;
-  captionFontFamily: string;
-  captionSize: number;
-}) {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const captions = captionsFromJson(clip.captions);
-  const timeInClip = frame / fps;
-  const absoluteTime = clip.startTime + timeInClip;
-  const activeCaption = getActiveCaption(captions, absoluteTime);
-  const displayWords = (activeCaption?.text ?? "").split(/\s+/).filter(Boolean).slice(0, 3);
-  const resolvedStyle = resolveCaptionStyle(captionStyleKey);
-
-  return (
-    <AbsoluteFill className="bg-black">
-      <Html5Video src={videoUrl} className="h-full w-full object-cover" startFrom={Math.floor(clip.startTime * fps)} endAt={Math.floor(clip.endTime * fps)} />
-      {displayWords.length > 0 && (
-        <AbsoluteFill className="pointer-events-none justify-end items-center pb-20">
-          <div className={`text-center ${resolvedStyle.containerClassName}`} style={{ fontFamily: captionFontFamily }}>
-            {displayWords.map((word, idx) => (
-              <span
-                key={`${word}-${idx}`}
-                className={idx === 0 ? resolvedStyle.highlightedWordClassName : resolvedStyle.wordClassName}
-                style={{ fontSize: `${captionSize}rem`, lineHeight: 1.05 }}
-              >
-                {word}
-              </span>
-            ))}
-          </div>
-        </AbsoluteFill>
-      )}
-    </AbsoluteFill>
-  );
-}
 
 type RemotionShortPlayerProps = {
   clip: ShortClip;
@@ -117,7 +54,7 @@ export function RemotionShortPlayer({
   const selectedFontFamily = captionFontFamily ?? clip.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY;
   const selectedCaptionSize = captionSize ?? clip.captionSize ?? DEFAULT_CAPTION_SIZE;
   const fps = 30;
-  const durationInFrames = useMemo(() => Math.max(1, Math.floor((clip.endTime - clip.startTime) * fps)), [clip.endTime, clip.startTime]);
+  const durationInFrames = useMemo(() => getShortClipDurationInFrames(clip, fps), [clip]);
 
   // Pause/resume when parent signals editor opened/closed
   useEffect(() => {
@@ -167,7 +104,7 @@ export function RemotionShortPlayer({
     <div className="w-full h-full flex items-center justify-center">
       <Player
         ref={playerRef}
-        component={ClipComposition}
+        component={ShortClipComposition}
         durationInFrames={durationInFrames}
         fps={fps}
         compositionHeight={1280}

@@ -3,6 +3,8 @@
 import React, { useEffect, useRef } from "react";
 import { Play, Scissors, Download, ArrowRight, ChevronDown, Zap } from "lucide-react";
 import { Hero3DEffect } from "./Hero3DEffect";
+import { SignUpButton, useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 // ── Theme tokens ──────────────────────────────────────────────
 const C = {
@@ -15,8 +17,37 @@ const C = {
   border: "#2a2a2a",
 };
 
+function PrimaryCtaButton({ onClick, disabled = false }: { onClick?: () => void; disabled?: boolean }) {
+  return (
+    <button
+      id="hero-primary-cta"
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white transition-all duration-300 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+      style={{ background: `linear-gradient(135deg, ${C.deep}, ${C.electric})`, boxShadow: "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)", fontSize: "1.05rem" }}
+      onMouseEnter={e => {
+        if (disabled) return;
+        const el = e.currentTarget as HTMLButtonElement;
+        el.style.boxShadow = "0 0 55px rgba(176,38,255,0.65), 0 12px 30px rgba(0,0,0,0.5)";
+        el.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLButtonElement;
+        el.style.boxShadow = "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)";
+        el.style.transform = "translateY(0)";
+      }}
+    >
+      <Scissors size={18} />Start Clipping Free
+      <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
+    </button>
+  );
+}
+
 export function Hero() {
   const videoCardRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { isLoaded, userId } = useAuth();
 
   useEffect(() => {
     const card = videoCardRef.current;
@@ -65,14 +96,15 @@ export function Hero() {
       {/* CTAs */}
       <div className="flex flex-col sm:flex-row items-center gap-4 mb-16"
         style={{ animation: "fadeInUp 0.7s ease-out 0.3s both" }}>
-        <button id="hero-primary-cta"
-          className="group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white transition-all duration-300 focus:outline-none"
-          style={{ background: `linear-gradient(135deg, ${C.deep}, ${C.electric})`, boxShadow: "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)", fontSize: "1.05rem" }}
-          onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 55px rgba(176,38,255,0.65), 0 12px 30px rgba(0,0,0,0.5)"; el.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.boxShadow = "0 0 30px rgba(176,38,255,0.4), 0 8px 25px rgba(0,0,0,0.4)"; el.style.transform = "translateY(0)"; }}>
-          <Scissors size={18} />Start Clipping Free
-          <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
-        </button>
+        {!isLoaded ? (
+          <PrimaryCtaButton disabled />
+        ) : userId ? (
+          <PrimaryCtaButton onClick={() => router.push("/dashboard")} />
+        ) : (
+          <SignUpButton mode="modal">
+            <PrimaryCtaButton />
+          </SignUpButton>
+        )}
 
         <button id="hero-demo-btn"
           className="flex items-center gap-2 px-8 py-4 rounded-xl font-semibold transition-all duration-300 focus:outline-none"

@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -77,10 +76,12 @@ export function ShortClipEditorDialog({ open, onOpenChange, clip, previewVideoUr
             </DialogDescription>
           </div>
           <div className="flex items-center gap-2">
-            <DialogClose asChild>
-              <Button type="button" variant="ghost" className="h-8 px-3 text-xs text-[#888] hover:text-white hover:bg-white/5">
-                Cancel
-              </Button>
+            <DialogClose
+              render={
+                <Button type="button" variant="ghost" className="h-8 px-3 text-xs text-[#888] hover:text-white hover:bg-white/5" />
+              }
+            >
+              Cancel
             </DialogClose>
             <Button
               onClick={handleApply}
