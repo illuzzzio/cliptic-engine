@@ -169,7 +169,7 @@ export default function ProjectProcessingPage() {
         }
 
         if (result.status === "failed") {
-          setRenderError("Rendering failed. Please try again.");
+          setRenderError(result.message || "Rendering failed. Please try again.");
         }
       } catch (err: unknown) {
         if (!cancelled) setRenderError(getErrorMessage(err));

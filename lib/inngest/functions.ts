@@ -275,6 +275,7 @@ async function ensureGeneratedShortsTable() {
       "render_bucket_name" text,
       "render_status" text DEFAULT 'idle',
       "render_progress" double precision DEFAULT 0,
+      "render_error" text,
       "order_index" integer NOT NULL,
       "created_at" timestamp DEFAULT now() NOT NULL,
       "updated_at" timestamp DEFAULT now() NOT NULL
@@ -285,6 +286,7 @@ async function ensureGeneratedShortsTable() {
   await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_bucket_name" text`);
   await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_status" text DEFAULT 'idle'`);
   await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_progress" double precision DEFAULT 0`);
+  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_error" text`);
 }
 
 async function generateShortMomentsWithGemini(transcriptText: string, captions: Caption[], userId: string) {
@@ -571,6 +573,11 @@ function getRemotionLambdaConfig() {
     throw new Error("REMOTION_SERVE_URL or REMOTION_SITE_URL is not set in environment variables");
   }
 
+  const parsedServeUrl = new URL(serveUrl);
+  if (["localhost", "127.0.0.1", "0.0.0.0"].includes(parsedServeUrl.hostname)) {
+    throw new Error("REMOTION_SERVE_URL must be a deployed Remotion site URL. AWS Lambda cannot access localhost.");
+  }
+
   return { region, functionName, serveUrl, bucketName };
 }
 
@@ -623,6 +630,7 @@ export const renderShortClipVideo = inngest.createFunction(
             exportUrl: null,
             renderStatus: "rendering",
             renderProgress: 5,
+            renderError: null,
             updatedAt: new Date(),
           })
           .where(eq(generatedShorts.id, shortId));
@@ -688,6 +696,7 @@ export const renderShortClipVideo = inngest.createFunction(
             renderBucketName: output.bucketName,
             renderStatus: "rendering",
             renderProgress: 8,
+            renderError: null,
             updatedAt: new Date(),
           })
           .where(eq(generatedShorts.id, shortId));
@@ -724,6 +733,7 @@ export const renderShortClipVideo = inngest.createFunction(
               .set({
                 renderStatus: "failed",
                 renderProgress: normalizedProgress,
+                renderError: getRenderErrorMessage(progress),
                 updatedAt: new Date(),
               })
               .where(eq(generatedShorts.id, shortId));
@@ -736,6 +746,7 @@ export const renderShortClipVideo = inngest.createFunction(
               renderStatus: progress.done ? "completed" : "rendering",
               renderProgress: progress.done ? 100 : normalizedProgress,
               exportUrl: progress.done ? progress.outputFile : null,
+              renderError: null,
               updatedAt: new Date(),
             })
             .where(eq(generatedShorts.id, shortId));
@@ -774,11 +785,13 @@ export const renderShortClipVideo = inngest.createFunction(
       throw new Error("Timed out waiting for Remotion Lambda render to finish.");
     } catch (error: unknown) {
       await step.run("mark-short-render-failed", async () => {
+        const message = getErrorMessage(error);
         await db
           .update(generatedShorts)
           .set({
             renderStatus: "failed",
             renderProgress: 100,
+            renderError: message,
             updatedAt: new Date(),
           })
           .where(eq(generatedShorts.id, shortId));

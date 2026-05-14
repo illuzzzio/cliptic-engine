@@ -43,6 +43,7 @@ export const generatedShorts = pgTable("generated_shorts", {
   renderBucketName: text("render_bucket_name"),
   renderStatus: text("render_status").default("idle"),
   renderProgress: doublePrecision("render_progress").default(0),
+  renderError: text("render_error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

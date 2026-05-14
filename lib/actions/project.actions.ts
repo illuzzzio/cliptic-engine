@@ -32,6 +32,7 @@ async function ensureGeneratedShortsCaptionColumns() {
       await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_bucket_name" text`);
       await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_status" text DEFAULT 'idle'`);
       await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_progress" double precision DEFAULT 0`);
+      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_error" text`);
     })();
   }
   await ensuredCaptionColumnsPromise;
@@ -72,11 +73,27 @@ function getRemotionLambdaConfig() {
     throw new Error("REMOTION_SERVE_URL or REMOTION_SITE_URL is not set in environment variables");
   }
 
+  const parsedServeUrl = new URL(serveUrl);
+  if (["localhost", "127.0.0.1", "0.0.0.0"].includes(parsedServeUrl.hostname)) {
+    throw new Error("REMOTION_SERVE_URL must be a deployed Remotion site URL. AWS Lambda cannot access localhost.");
+  }
+
   return { region, functionName, serveUrl, bucketName };
+}
+
+function getRenderErrorMessageFromProgress(progress: Awaited<ReturnType<typeof getRenderProgress>>) {
+  const firstError = progress.errors?.[0];
+  if (!firstError) return "Remotion Lambda render failed.";
+  if ("message" in firstError && typeof firstError.message === "string") return firstError.message;
+  return "Remotion Lambda render failed.";
 }
 
 function getShortClipDurationInFrames(clip: { startTime: number; endTime: number }, fps = 30) {
   return Math.max(1, Math.floor((clip.endTime - clip.startTime) * fps));
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Remotion Lambda render failed.";
 }
 
 export async function getProjectStatus(projectId: string) {
@@ -162,6 +179,7 @@ export async function updateShortCaptionStyle(input: {
             renderBucketName: null,
             renderStatus: "idle",
             renderProgress: 0,
+            renderError: null,
           }
         : {}),
       updatedAt: new Date(),
@@ -207,6 +225,7 @@ export async function startShortClipDownload(shortId: string) {
   if (!project) throw new Error("Project not found");
   if (project.userId !== user.id) throw new Error("Unauthorized");
   if (!project.videoKey) throw new Error("Source video is not ready for rendering");
+  const { region, functionName, serveUrl, bucketName } = getRemotionLambdaConfig();
 
   await db
     .update(generatedShorts)
@@ -216,11 +235,11 @@ export async function startShortClipDownload(shortId: string) {
       renderBucketName: null,
       renderStatus: "rendering",
       renderProgress: 3,
+      renderError: null,
       updatedAt: new Date(),
     })
     .where(eq(generatedShorts.id, shortId));
 
-  const { region, functionName, serveUrl, bucketName } = getRemotionLambdaConfig();
   const signedVideoUrl = await getSignedUrl(
     s3Client,
     new GetObjectCommand({
@@ -229,39 +248,55 @@ export async function startShortClipDownload(shortId: string) {
     }),
     { expiresIn: 604800 }
   );
-  const output = await renderMediaOnLambda({
-    region,
-    functionName,
-    serveUrl,
-    composition: "ShortClip",
-    codec: "h264",
-    imageFormat: "jpeg",
-    forceBucketName: bucketName,
-    privacy: "public",
-    framesPerLambda: 60,
-    forceDurationInFrames: getShortClipDurationInFrames(short, 30),
-    audioCodec: "aac",
-    muted: false,
-    outName: `short-renders/${short.id}-${Date.now()}.mp4`,
-    inputProps: {
-      videoUrl: signedVideoUrl,
-      clip: {
-        id: short.id,
-        projectId: short.projectId,
-        title: short.title,
-        startTime: short.startTime,
-        endTime: short.endTime,
-        duration: short.duration,
-        captions: short.captions,
+
+  let output: Awaited<ReturnType<typeof renderMediaOnLambda>>;
+  try {
+    output = await renderMediaOnLambda({
+      region,
+      functionName,
+      serveUrl,
+      composition: "ShortClip",
+      codec: "h264",
+      imageFormat: "jpeg",
+      forceBucketName: bucketName,
+      privacy: "public",
+      framesPerLambda: 60,
+      forceDurationInFrames: getShortClipDurationInFrames(short, 30),
+      audioCodec: "aac",
+      muted: false,
+      outName: `short-renders/${short.id}-${Date.now()}.mp4`,
+      inputProps: {
+        videoUrl: signedVideoUrl,
+        clip: {
+          id: short.id,
+          projectId: short.projectId,
+          title: short.title,
+          startTime: short.startTime,
+          endTime: short.endTime,
+          duration: short.duration,
+          captions: short.captions,
+          captionStyleKey: short.captionStyleKey ?? DEFAULT_CAPTION_STYLE_KEY,
+          captionFontFamily: short.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY,
+          captionSize: short.captionSize ?? DEFAULT_CAPTION_SIZE,
+        },
         captionStyleKey: short.captionStyleKey ?? DEFAULT_CAPTION_STYLE_KEY,
         captionFontFamily: short.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY,
         captionSize: short.captionSize ?? DEFAULT_CAPTION_SIZE,
       },
-      captionStyleKey: short.captionStyleKey ?? DEFAULT_CAPTION_STYLE_KEY,
-      captionFontFamily: short.captionFontFamily ?? DEFAULT_CAPTION_FONT_FAMILY,
-      captionSize: short.captionSize ?? DEFAULT_CAPTION_SIZE,
-    },
-  });
+    });
+  } catch (error) {
+    const message = getErrorMessage(error);
+    await db
+      .update(generatedShorts)
+      .set({
+        renderStatus: "failed",
+        renderProgress: 0,
+        renderError: message,
+        updatedAt: new Date(),
+      })
+      .where(eq(generatedShorts.id, shortId));
+    throw error;
+  }
 
   await db
     .update(generatedShorts)
@@ -270,6 +305,7 @@ export async function startShortClipDownload(shortId: string) {
       renderBucketName: output.bucketName,
       renderStatus: "rendering",
       renderProgress: 8,
+      renderError: null,
       updatedAt: new Date(),
     })
     .where(eq(generatedShorts.id, shortId));
@@ -309,6 +345,7 @@ export async function getShortClipRenderStatus(shortId: string) {
         renderId: short.renderId,
       });
       const nextProgress = progress.done ? 100 : Math.max(8, Math.min(99, Math.round(progress.overallProgress * 100)));
+      const nextError = progress.fatalErrorEncountered ? getRenderErrorMessageFromProgress(progress) : null;
       const nextStatus = progress.fatalErrorEncountered ? "failed" : progress.done ? "completed" : "rendering";
       const nextExportUrl = progress.done ? progress.outputFile : short.exportUrl;
 
@@ -318,6 +355,7 @@ export async function getShortClipRenderStatus(shortId: string) {
           renderStatus: nextStatus,
           renderProgress: nextProgress,
           exportUrl: nextExportUrl,
+          renderError: nextError,
           updatedAt: new Date(),
         })
         .where(eq(generatedShorts.id, shortId));
@@ -327,7 +365,7 @@ export async function getShortClipRenderStatus(shortId: string) {
         status: nextStatus,
         progress: nextProgress,
         exportUrl: nextExportUrl,
-        message: getRenderStatusLabel(nextStatus),
+        message: nextError ?? getRenderStatusLabel(nextStatus),
       };
     } catch (error) {
       console.warn("Could not refresh Remotion render progress", error);
@@ -339,7 +377,8 @@ export async function getShortClipRenderStatus(shortId: string) {
     status: short.renderStatus ?? "idle",
     progress: Math.round(Number(short.renderProgress ?? 0)),
     exportUrl: short.exportUrl,
-    message: getRenderStatusLabel(short.renderStatus),
+    message: short.renderError ?? getRenderStatusLabel(short.renderStatus),
+    error: short.renderError,
   };
 }
 
@@ -374,6 +413,7 @@ export async function cancelShortClipRender(shortId: string) {
       renderBucketName: null,
       renderStatus: "canceled",
       renderProgress: 0,
+      renderError: null,
       updatedAt: new Date(),
     })
     .where(eq(generatedShorts.id, shortId));
