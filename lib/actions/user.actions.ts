@@ -30,13 +30,14 @@ export async function deductCredits(amount: number) {
     return true; // Pro has unlimited credits
   }
 
-  if (dbUser.credits < amount) {
+  const currentCredits = dbUser.credits ?? 0;
+  if (currentCredits < amount) {
     throw new Error("Insufficient credits");
   }
 
   await db.update(users)
     .set({ 
-        credits: Math.max(0, dbUser.credits - amount),
+        credits: Math.max(0, currentCredits - amount),
         updatedAt: new Date()
     })
     .where(eq(users.id, user.id));

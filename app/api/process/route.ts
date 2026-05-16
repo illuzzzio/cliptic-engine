@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
 
     const CREDIT_COST = 10;
     const isFreePlan = dbUser.plan === "free";
-    const hasInsufficientCredits = dbUser.credits < CREDIT_COST && dbUser.plan !== "cliptic_pro";
+    const userCredits = dbUser.credits ?? 0;
+    const hasInsufficientCredits = userCredits < CREDIT_COST && dbUser.plan !== "cliptic_pro";
 
     // 2. Arcjet Protection & Trial Restriction
     if (arcjetEnabled) {
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     if (dbUser.plan !== "cliptic_pro") {
       await db.update(users)
         .set({ 
-          credits: Math.max(0, dbUser.credits - CREDIT_COST),
+          credits: Math.max(0, (dbUser.credits ?? 0) - CREDIT_COST),
           updatedAt: new Date()
         })
         .where(eq(users.id, user.id));
@@ -88,7 +89,10 @@ export async function POST(req: NextRequest) {
       data: { projectId, s3Key, fileName, userId: user.id }
     });
 
-    return NextResponse.json({ success: true, remainingCredits: dbUser.plan === "cliptic_pro" ? "Unlimited" : dbUser.credits - CREDIT_COST });
+    return NextResponse.json({ 
+      success: true, 
+      remainingCredits: dbUser.plan === "cliptic_pro" ? "Unlimited" : (dbUser.credits ?? 0) - CREDIT_COST 
+    });
   } catch (error: unknown) {
     console.error("Cliptic Process error:", error);
     return NextResponse.json({ error: "Failed to start Cliptic processing", details: getErrorMessage(error) }, { status: 500 });
