@@ -47,3 +47,34 @@ export const generatedShorts = pgTable("generated_shorts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const socialMediaAccounts = pgTable("social_media_accounts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(),
+  accountName: text("account_name").notNull(),
+  accountHandle: text("account_handle"),
+  profilePic: text("profile_pic"),
+  connectedAt: timestamp("connected_at").defaultNow().notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const scheduledPosts = pgTable("scheduled_posts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  shortId: text("short_id").notNull().references(() => generatedShorts.id, { onDelete: "cascade" }),
+  socialAccountId: text("social_account_id").notNull().references(() => socialMediaAccounts.id, { onDelete: "cascade" }),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  status: text("status").notNull().default("scheduled"),
+  postedAt: timestamp("posted_at"),
+  postUrl: text("post_url"),
+  errorMessage: text("error_message"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

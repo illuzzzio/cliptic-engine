@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Zap, Star, Building2 } from "lucide-react";
+import { Check, Zap, Star, Building2, Loader2 } from "lucide-react";
+import Script from "next/script";
 
 const C = { deep: "#7000FF", electric: "#B026FF", cyan: "#00E5FF", dark: "#111111", border: "#2a2a2a", white: "#F8F8F8", muted: "#6B6B6B" };
 
@@ -35,9 +36,65 @@ const plans = [
 
 export function Pricing() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+
+  const handleCheckout = async (plan: typeof plans[0]) => {
+    const price = plan.price[billing];
+    if (price === 0) {
+      alert("Redirecting to your free account...");
+      return;
+    }
+
+    setIsLoading(plan.id);
+
+    try {
+      const res = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: price, planId: plan.id }),
+      });
+
+      const order = await res.json();
+
+      if (order.error) {
+        throw new Error(order.error);
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "", 
+        amount: order.amount,
+        currency: order.currency,
+        name: "Cliptic Engine",
+        description: `Subscription to ${plan.name} Plan`,
+        order_id: order.id,
+        handler: function (response: any) {
+          alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+        },
+        prefill: {
+          name: "User",
+          email: "user@example.com",
+        },
+        theme: {
+          color: plan.color,
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (response: any) {
+        alert(`Payment failed: ${response.error.description}`);
+      });
+      rzp.open();
+    } catch (error) {
+      console.error("Error starting checkout:", error);
+      alert("Failed to start checkout. Please try again.");
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   return (
     <section id="pricing" aria-label="Pricing" className="relative py-24 px-6" style={{ zIndex: 1 }}>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       {/* Gradient divider top */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px"
         style={{ background: `linear-gradient(90deg, transparent, ${C.deep}, ${C.cyan}, ${C.electric}, transparent)` }} />
@@ -120,10 +177,13 @@ export function Pricing() {
               </div>
 
               <button id={`pricing-cta-${plan.id}`}
-                className="w-full py-3 rounded-xl font-bold text-sm mb-7 transition-all duration-300 focus:outline-none"
+                disabled={isLoading === plan.id}
+                onClick={() => handleCheckout(plan)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm mb-7 transition-all duration-300 focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                 style={plan.ctaStyle as React.CSSProperties}
-                onMouseEnter={e => { if (plan.popular) (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 0 30px ${plan.color}50`; }}
+                onMouseEnter={e => { if (plan.popular && isLoading !== plan.id) (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 0 30px ${plan.color}50`; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; }}>
+                {isLoading === plan.id && <Loader2 size={16} className="animate-spin" />}
                 {plan.cta}
               </button>
 

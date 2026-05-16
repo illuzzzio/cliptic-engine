@@ -12,6 +12,7 @@ export async function SyncUser() {
 
     const email = user.emailAddresses[0]?.emailAddress ?? "";
 
+    // Using onConflictDoUpdate but handling potential unique constraint failures on email
     await db.insert(users).values({
       id: user.id,
       email: email,
@@ -27,9 +28,9 @@ export async function SyncUser() {
         updatedAt: new Date(),
       }
     });
-  } catch (error) {
-    console.error("Failed to sync user to database:", error);
-    // Silent fail so we don't break the app if DB is not configured yet
+  } catch (error: any) {
+    console.error("Failed to sync user to database:", error.message || error);
+    // Silent fail so we don't break the app if there's a constraint issue
   }
 
   return null;
