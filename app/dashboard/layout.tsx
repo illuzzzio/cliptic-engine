@@ -15,6 +15,8 @@ const navItems = [
   { name: "Pricing", href: "/dashboard/pricing", icon: CreditCard },
 ];
 
+import { CreditsDisplay } from "@/components/dashboard/CreditsDisplay";
+
 function SidebarContent({
   pathname,
   onMobileClose,
@@ -62,6 +64,7 @@ function SidebarContent({
       </div>
 
       <div className="p-4 mt-auto border-t border-[#1a1a1a] bg-gradient-to-t from-[#050505] to-transparent">
+        <CreditsDisplay />
         <div className="flex items-center gap-3 bg-[#111111] border border-[#2a2a2a] rounded-xl p-3 shadow-lg hover:border-[#B026FF]/30 transition-all">
           <UserButton 
             showName={true}

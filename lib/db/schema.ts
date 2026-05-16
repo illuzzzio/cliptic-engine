@@ -5,6 +5,9 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  plan: text("plan").default("free"), // free, cliptic, cliptic_pro
+  credits: integer("credits").default(30),
+  lastRenewalAt: timestamp("last_renewal_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -77,4 +80,13 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const feedbacks = pgTable("feedbacks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  userName: text("user_name"),
+  rating: integer("rating").notNull(),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

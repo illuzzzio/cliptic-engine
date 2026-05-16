@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { getScheduledPosts, schedulePost, generateAIContent, cancelScheduledPost } from "@/lib/actions/schedule.actions";
 import { getMyVideos } from "@/lib/actions/videos.actions";
-import { getConnectedAccounts } from "@/app/api/zernio/accounts/route"; // Wait, this is a GET route, I'll fetch it via API
+
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";

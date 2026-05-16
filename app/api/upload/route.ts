@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const projectId = generateId();
     const s3Key = `projects/${projectId}/${Date.now()}-${fileName.replace(/\s+/g, '-')}`;
 
-    // Generate Presigned Upload URL (Valid for 1 hour)
+    // Generate Secure Cliptic Upload URL (Valid for 1 hour)
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME || "cliptic-bucket",
       Key: s3Key,

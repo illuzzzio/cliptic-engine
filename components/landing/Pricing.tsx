@@ -12,24 +12,24 @@ const plans = [
     price: { monthly: 0, yearly: 0 }, color: C.muted, borderColor: C.border,
     cta: "Get Started Free",
     ctaStyle: { background: "transparent", border: `1px solid ${C.border}`, color: C.white },
-    features: ["3 shorts per month", "Up to 30-min source video", "720p export quality", "Basic auto captions", "Watermark included", "Community support"],
-    notIncluded: ["Custom branding", "Batch processing", "API access"],
+    features: ["30 Credits per month", "Up to 10-min source video", "720p export quality", "Basic auto captions", "Cliptic Watermark included", "Community support"],
+    notIncluded: ["No Watermark", "Priority Processing", "Advanced AI Styles"],
   },
   {
-    id: "pro", icon: Star, name: "Pro", tagline: "For creators who mean business",
-    price: { monthly: 29, yearly: 19 }, color: C.cyan, borderColor: C.cyan,
+    id: "cliptic", icon: Star, name: "Cliptic Plan", tagline: "For creators who mean business",
+    price: { monthly: 499, yearly: 399 }, color: C.cyan, borderColor: C.cyan,
     popular: true,
-    cta: "Start Pro Trial",
+    cta: "Upgrade to Cliptic",
     ctaStyle: { background: C.cyan, border: "none", color: "#090909" },
-    features: ["Unlimited shorts", "Up to 4-hour source videos", "4K export quality", "AI captions in 50+ languages", "No watermark", "Custom branding", "Priority processing", "Thumbnail generator", "Analytics dashboard"],
+    features: ["250 Credits per month", "Up to 60-min source videos", "1080p export quality", "AI captions in 50+ languages", "No watermark", "Custom branding", "Priority processing", "Thumbnail generator", "Analytics dashboard"],
     notIncluded: ["API access"],
   },
   {
-    id: "enterprise", icon: Building2, name: "Enterprise", tagline: "Scale with your team",
-    price: { monthly: 99, yearly: 79 }, color: C.electric, borderColor: C.electric,
-    cta: "Contact Sales",
+    id: "cliptic_pro", icon: Building2, name: "Cliptic Pro", tagline: "Scale your content engine",
+    price: { monthly: 1499, yearly: 1199 }, color: C.electric, borderColor: C.electric,
+    cta: "Get Pro Access",
     ctaStyle: { background: "transparent", border: `1px solid ${C.electric}`, color: C.electric },
-    features: ["Everything in Pro", "Unlimited team members", "API access & webhooks", "White-label solution", "SLA guarantee", "Dedicated account manager", "Custom AI model training", "SSO / SAML support", "Advanced analytics"],
+    features: ["Unlimited Credits", "Up to 4-hour source video", "4K export quality", "Everything in Cliptic Plan", "White-label solution", "Dedicated account manager", "Advanced analytics"],
     notIncluded: [],
   },
 ];
@@ -167,7 +167,7 @@ export function Pricing() {
               <div className="mb-6">
                 <div className="flex items-end gap-1">
                   <span className="text-5xl font-black" style={{ color: plan.popular ? C.cyan : C.white, letterSpacing: "-0.04em" }}>
-                    ${price}
+                    ₹{price}
                   </span>
                   {price > 0 && <span className="text-sm mb-2" style={{ color: C.muted }}>/mo</span>}
                 </div>

@@ -72,7 +72,7 @@ export function VideoUploader() {
     setProgress(0);
 
     try {
-      // 1. Get Presigned Upload URL from Server
+      // 1. Get Secure Upload URL from Server
       const urlRes = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,7 +84,7 @@ export function VideoUploader() {
       
       const { uploadUrl, projectId, s3Key } = urlData;
 
-      // 2. Upload directly to AWS S3
+      // 2. Secure Upload to Cliptic Cloud
       const xhr = new XMLHttpRequest();
       xhrRef.current = xhr;
       
@@ -245,7 +245,7 @@ export function VideoUploader() {
                     <div className="p-4 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a]">
                       <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-[#6B6B6B]">Format</span>
-                        <span className="font-bold text-white">Direct S3 Upload</span>
+                        <span className="font-bold text-white">Secure Cliptic Upload</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-[#6B6B6B]">Max Size</span>
@@ -273,7 +273,7 @@ export function VideoUploader() {
                 {status === "uploading" && (
                   <div className="mb-8">
                     <h3 className="text-xl font-black text-white mb-2">Uploading...</h3>
-                    <p className="text-[#6B6B6B] text-sm mb-6">Please don&apos;t close this tab while your video is securely transferring to AWS S3.</p>
+                    <p className="text-[#6B6B6B] text-sm mb-6">Please don&apos;t close this tab while your video is securely transferring to Cliptic Cloud.</p>
                     
                     <div className="w-full bg-[#1a1a1a] rounded-full h-3 mb-3 border border-[#2a2a2a] overflow-hidden">
                       <div 

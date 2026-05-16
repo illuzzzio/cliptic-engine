@@ -3,8 +3,9 @@ import { Background3D } from "@/components/landing/Background3D";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
 import { Features } from "@/components/landing/Features";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { UserInstructions } from "@/components/landing/UserInstructions";
 import { Pricing } from "@/components/landing/Pricing";
+import { Feedback } from "@/components/landing/Feedback";
 import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
@@ -19,8 +20,9 @@ export default function Home() {
         <main>
           <Hero />
           <Features />
-          <HowItWorks />
+          <UserInstructions />
           <Pricing />
+          <Feedback />
         </main>
         <Footer />
       </div>

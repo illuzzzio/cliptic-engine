@@ -12,6 +12,8 @@ import {
   FaTiktok,
   FaSnapchat
 } from "react-icons/fa6";
+import { getUserCredits } from "@/lib/actions/user.actions";
+
 
 type Platform = {
   name: string;
@@ -90,9 +92,7 @@ const platforms: Platform[] = [
 ];
 
 export default function SocialConnectPage() {
-  const [loadingPlatform, setLoadingPlatform] = useState<string | null>(null);
-  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [userPlan, setUserPlan] = useState<string>("free");
 
   const fetchAccounts = async () => {
     setIsLoadingAccounts(true);
@@ -106,12 +106,6 @@ export default function SocialConnectPage() {
       if (res.ok && data.accounts) {
         console.log("Found accounts:", data.accounts.length);
         setConnectedAccounts(data.accounts);
-        if (data.accounts.length > 0) {
-          // You could add a toast here if you have a toast library
-          console.log("Successfully synced accounts from Zernio");
-        }
-      } else {
-        console.error("Failed to fetch accounts:", data.error);
       }
     } catch (e) {
       console.error("Failed to fetch accounts:", e);
@@ -120,8 +114,14 @@ export default function SocialConnectPage() {
     }
   };
 
+  const fetchUserPlan = async () => {
+    const data = await getUserCredits();
+    if (data) setUserPlan(data.plan);
+  };
+
   useEffect(() => {
     fetchAccounts();
+    fetchUserPlan();
     
     // Check if we just returned from a connection flow
     if (typeof window !== "undefined") {
@@ -154,6 +154,10 @@ export default function SocialConnectPage() {
   };
 
   const handleConnect = async (platformKey: string) => {
+    if (userPlan === "free" && platformKey !== "instagram" && platformKey !== "youtube") {
+      alert("Free tier users can only connect to Instagram and YouTube. Please upgrade to the Cliptic Plan to unlock all platforms.");
+      return;
+    }
     setLoadingPlatform(platformKey);
     try {
       const cachedProfileId = localStorage.getItem("zernioProfileId");
