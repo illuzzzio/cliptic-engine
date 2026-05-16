@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Check, Zap, Star, Building2, Loader2 } from "lucide-react";
 import Script from "next/script";
+import { updateUserPlan } from "@/lib/actions/user.actions";
 
 const C = { deep: "#7000FF", electric: "#B026FF", cyan: "#00E5FF", dark: "#111111", border: "#2a2a2a", white: "#F8F8F8", muted: "#6B6B6B" };
 
@@ -67,8 +68,15 @@ export function Pricing() {
         name: "Cliptic Engine",
         description: `Subscription to ${plan.name} Plan`,
         order_id: order.id,
-        handler: function (response: any) {
-          alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+        handler: async function (response: any) {
+          try {
+            await updateUserPlan(plan.id, response.razorpay_payment_id);
+            alert(`Payment successful! Your plan has been updated to ${plan.name}.`);
+            window.location.reload(); 
+          } catch (err) {
+            console.error("Failed to update plan:", err);
+            alert("Payment was successful but we failed to update your account. Please contact support with payment ID: " + response.razorpay_payment_id);
+          }
         },
         prefill: {
           name: "User",

@@ -1,5 +1,5 @@
 "use server";
-
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { scheduledPosts, generatedShorts, socialMediaAccounts } from "@/lib/db/schema";
 import { eq, and, between, sql } from "drizzle-orm";
@@ -93,7 +93,7 @@ export async function schedulePost(data: {
   return { ids: results };
 }
 
-import { revalidatePath } from "next/cache";
+
 
 export async function cancelScheduledPost(scheduledPostId: string) {
   const user = await currentUser();

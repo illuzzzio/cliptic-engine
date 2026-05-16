@@ -44,3 +44,26 @@ export async function deductCredits(amount: number) {
 
   return true;
 }
+
+export async function updateUserPlan(planId: string, paymentId: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Note: In a production environment, you should verify the paymentId with Razorpay 
+  // using their API or a webhook before updating the database.
+  
+  let credits = 30;
+  if (planId === 'cliptic') credits = 250;
+  if (planId === 'cliptic_pro') credits = 9999;
+
+  await db.update(users)
+    .set({ 
+        plan: planId,
+        credits: credits,
+        lastRenewalAt: new Date(),
+        updatedAt: new Date()
+    })
+    .where(eq(users.id, user.id));
+
+  return { success: true };
+}

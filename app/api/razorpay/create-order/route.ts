@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     const options = {
       amount: amount * 100, // amount in cents
-      currency: "USD",
+      currency: "INR",
       receipt: `receipt_${Date.now()}`,
       notes: {
         planId: planId,
