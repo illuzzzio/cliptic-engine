@@ -62,24 +62,17 @@ function SidebarContent({
       </div>
 
       <div className="p-4 mt-auto border-t border-[#1a1a1a] bg-gradient-to-t from-[#050505] to-transparent">
-        <div className="flex items-center justify-between bg-[#111111] border border-[#2a2a2a] rounded-xl p-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: "w-9 h-9 rounded-lg border border-[#2a2a2a]",
-                  userButtonPopoverCard: "shadow-2xl border border-[#2a2a2a] bg-[#111111]",
-                },
-              }}
-            />
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-[#F8F8F8]">Account</span>
-              <span className="text-xs text-[#6B6B6B]">Pro Plan</span>
-            </div>
-          </div>
-          <Link href="/dashboard/settings" className="p-2 text-[#6B6B6B] hover:text-[#F8F8F8] hover:bg-[#1a1a1a] rounded-lg transition-colors">
-            <Settings size={18} />
-          </Link>
+        <div className="flex items-center gap-3 bg-[#111111] border border-[#2a2a2a] rounded-xl p-3 shadow-lg hover:border-[#B026FF]/30 transition-all">
+          <UserButton 
+            showName={true}
+            appearance={{
+              elements: {
+                userButtonBox: "flex-row-reverse gap-3",
+                userButtonOuterIdentifier: "text-sm font-bold text-[#F8F8F8] font-sans",
+                avatarBox: "w-9 h-9 rounded-lg border border-[#2a2a2a]",
+              }
+            }}
+          />
         </div>
       </div>
     </>

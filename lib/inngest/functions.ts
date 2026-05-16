@@ -1,6 +1,6 @@
 import { inngest } from "./client";
 import { db } from "@/lib/db";
-import { generatedShorts, projects } from "@/lib/db/schema";
+import { generatedShorts, projects, scheduledPosts, socialMediaAccounts } from "@/lib/db/schema";
 import { SHORTS_GENERATION_CONFIG } from "@/lib/config/shorts";
 import { aiArcjet, arcjetEnabled, estimateTokens } from "@/lib/arcjet";
 import { eq, sql } from "drizzle-orm";
@@ -798,6 +798,108 @@ export const renderShortClipVideo = inngest.createFunction(
           .where(eq(generatedShorts.id, shortId));
       });
 
+      throw error;
+    }
+  }
+);
+
+export const publishSocialPost = inngest.createFunction(
+  {
+    id: "publish-social-post",
+    triggers: [{ event: "social.post.publish" }],
+  },
+  async ({ event, step }) => {
+    const { scheduledPostId } = event.data;
+
+    // 1. Load the scheduled post details
+    const post = await step.run("load-post-details", async () => {
+      const [p] = await db.select({
+        id: scheduledPosts.id,
+        scheduledDate: scheduledPosts.scheduledDate,
+        userId: scheduledPosts.userId,
+        metadata: scheduledPosts.metadata,
+        platform: socialMediaAccounts.platform,
+        accountName: socialMediaAccounts.accountName,
+        zernioAccountId: sql<string>`${socialMediaAccounts.metadata}->>'_id'`,
+        exportUrl: generatedShorts.exportUrl,
+        shortTitle: generatedShorts.title,
+      })
+      .from(scheduledPosts)
+      .leftJoin(socialMediaAccounts, eq(scheduledPosts.socialAccountId, socialMediaAccounts.id))
+      .leftJoin(generatedShorts, eq(scheduledPosts.shortId, generatedShorts.id))
+      .where(eq(scheduledPosts.id, scheduledPostId));
+
+      if (!p) throw new Error("Post not found");
+      return p;
+    });
+
+    // 2. Wait until the scheduled date
+    const waitTime = new Date(post.scheduledDate).getTime() - Date.now();
+    if (waitTime > 0) {
+      await step.sleepUntil("wait-for-schedule", post.scheduledDate);
+    }
+
+    // 3. Mark as posting
+    await step.run("mark-as-posting", async () => {
+      await db.update(scheduledPosts)
+        .set({ status: "posting", updatedAt: new Date() })
+        .where(eq(scheduledPosts.id, scheduledPostId));
+    });
+
+    // 4. Call Zernio API to publish
+    try {
+      const result = await step.run("publish-to-zernio", async () => {
+        const apiKey = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY;
+        if (!apiKey) throw new Error("ZERNIO_API_KEY missing");
+
+        const metadata = post.metadata as any;
+        const caption = metadata?.caption || `Check out this clip: ${post.shortTitle}`;
+
+        const response = await fetch("https://zernio.com/api/v1/posts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            accountId: post.zernioAccountId,
+            content: caption,
+            mediaUrls: [post.exportUrl],
+            // Add any platform specific options here
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Zernio publishing failed: ${errorText}`);
+        }
+
+        return await response.json();
+      });
+
+      // 5. Update status to completed
+      await step.run("finalize-post", async () => {
+        await db.update(scheduledPosts)
+          .set({ 
+            status: "completed", 
+            postedAt: new Date(),
+            postUrl: result.postUrl || result.url || null,
+            updatedAt: new Date() 
+          })
+          .where(eq(scheduledPosts.id, scheduledPostId));
+      });
+
+      return { success: true, postId: result.postId || result.id };
+    } catch (error: any) {
+      await step.run("mark-as-failed", async () => {
+        await db.update(scheduledPosts)
+          .set({ 
+            status: "failed", 
+            errorMessage: error.message || "Unknown publishing error",
+            updatedAt: new Date() 
+          })
+          .where(eq(scheduledPosts.id, scheduledPostId));
+      });
       throw error;
     }
   }

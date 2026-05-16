@@ -1,6 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
-import { processUploadedVideo, renderShortClipVideo } from "@/lib/inngest/functions";
+import { processUploadedVideo, renderShortClipVideo, publishSocialPost } from "@/lib/inngest/functions";
 
 // Expose the Inngest API
 export const { GET, POST, PUT } = serve({
@@ -8,5 +8,6 @@ export const { GET, POST, PUT } = serve({
   functions: [
     processUploadedVideo,
     renderShortClipVideo,
+    publishSocialPost,
   ],
 });
