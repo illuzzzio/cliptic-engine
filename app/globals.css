@@ -202,3 +202,36 @@
   border-radius: 9999px;
   border: 2px solid rgba(20, 20, 20, 0.9);
 }
+
+/* Purple theme scrollbar */
+.scrollbar {
+  scrollbar-color: rgba(176, 38, 255, 0.5) transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(176, 38, 255, 0.5);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.3s ease;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(176, 38, 255, 0.7);
+  background-clip: padding-box;
+}
+
+.hover\:scrollbar-thumb-\[\#B026FF\]\/70:hover::-webkit-scrollbar-thumb {
+  background: rgba(176, 38, 255, 0.7);
+  background-clip: padding-box;
+}

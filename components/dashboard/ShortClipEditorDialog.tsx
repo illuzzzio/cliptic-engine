@@ -66,30 +66,28 @@ export function ShortClipEditorDialog({ open, onOpenChange, clip, previewVideoUr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-[96vw] w-[96vw] max-h-[95vh] p-0 overflow-hidden border border-white/10 bg-[#0a0a0a] text-white shadow-2xl">
+      <DialogContent className="!max-w-[96vw] w-[96vw] max-h-[95vh] p-0 overflow-hidden border border-white/10 bg-[#0a0a0a] text-white shadow-2xl [&_button:has(svg[class*='lucide-x'])]:opacity-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/40 flex-shrink-0">
-          <div>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/40 flex-shrink-0 gap-4">
+          <div className="flex-1 min-w-0">
             <DialogTitle className="text-lg font-extrabold text-white leading-none">Edit Clip Style</DialogTitle>
             <DialogDescription className="text-xs text-[#888] mt-0.5">
               Pick a style, font &amp; size — then apply.
             </DialogDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <DialogClose
-              render={
-                <Button type="button" variant="ghost" className="h-8 px-3 text-xs text-[#888] hover:text-white hover:bg-white/5" />
-              }
-            >
-              Cancel
-            </DialogClose>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               onClick={handleApply}
               disabled={!clip || isSaving}
-              className="h-8 px-4 text-xs font-bold rounded-lg bg-[#B026FF] text-white hover:bg-[#7000FF] disabled:opacity-40"
+              className="h-8 px-4 text-xs font-bold rounded-lg bg-[#B026FF] text-white hover:bg-[#7000FF] disabled:opacity-40 whitespace-nowrap"
             >
               {isSaving ? "Saving…" : "Apply Style"}
             </Button>
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" className="h-8 px-3 text-lg text-[#888] hover:text-white hover:bg-white/5 rounded-lg">
+                ✕
+              </Button>
+            </DialogClose>
           </div>
         </div>
 
@@ -97,7 +95,7 @@ export function ShortClipEditorDialog({ open, onOpenChange, clip, previewVideoUr
         <div className="flex flex-col lg:flex-row h-[calc(95vh-64px)] overflow-hidden">
 
           {/* ── LEFT: Controls ── */}
-          <div className="flex flex-col lg:w-[380px] lg:flex-shrink-0 overflow-y-auto border-b lg:border-b-0 lg:border-r border-white/10 bg-black/20 p-4 gap-5">
+          <div className="flex flex-col lg:w-[380px] lg:flex-shrink-0 overflow-y-auto border-b lg:border-b-0 lg:border-r border-white/10 bg-black/20 p-4 gap-5 scrollbar scrollbar-thumb-[#B026FF]/50 scrollbar-track-transparent hover:scrollbar-thumb-[#B026FF]/70">
 
             {/* Font Family */}
             <div className="space-y-2">

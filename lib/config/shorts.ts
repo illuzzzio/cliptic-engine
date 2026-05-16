@@ -11,4 +11,5 @@ export const SHORTS_GENERATION_CONFIG = {
   geminiModel: process.env.GEMINI_MODEL || "gemini-3-flash-preview",
   geminiTimeoutMs: readPositiveInteger(process.env.GEMINI_TIMEOUT_MS, 90000),
   maxCaptionLinesForPrompt: readPositiveInteger(process.env.SHORTS_PROMPT_CAPTION_LINES, 900),
+  remotionLambdaTimeoutSeconds: readPositiveInteger(process.env.REMOTION_LAMBDA_TIMEOUT_SECONDS, 900),
 };

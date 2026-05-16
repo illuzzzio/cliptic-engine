@@ -431,20 +431,22 @@ export default function ProjectProcessingPage() {
             }
           }}
         >
-          <DialogContent className="border border-white/10 bg-[#0a0a0a] text-white shadow-2xl">
-            <DialogHeader>
+          <DialogContent className="border border-white/10 bg-[#0a0a0a] text-white shadow-2xl max-w-md sm:max-w-lg w-full">
+            <DialogHeader className="text-left">
               <DialogTitle className="text-xl font-black text-white">Rendering Short Clip</DialogTitle>
-              <DialogDescription className="text-[#8a8a8a]">
-                Remotion Lambda is exporting the edited clip. The download will start automatically when it is ready.
+              <DialogDescription className="text-[#8a8a8a] text-sm leading-relaxed">
+                Remotion Lambda is exporting the edited clip. The download will start automatically when ready.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#777]">
-                <span>{renderError ? "Render failed" : renderMessage}</span>
-                <span className="text-[#00E5FF]">{Math.min(renderProgress, 100)}%</span>
+            <div className="space-y-5 py-4">
+              <div>
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#777] mb-3">
+                  <span className="truncate">{renderError ? "Render failed" : renderMessage}</span>
+                  <span className="text-[#00E5FF] ml-2 flex-shrink-0">{Math.min(renderProgress, 100)}%</span>
+                </div>
+                <Progress value={Math.min(renderProgress, 100)} className="h-2 [&_[data-slot=progress-track]]:bg-[#1a1a1a] [&_[data-slot=progress-track]]:border [&_[data-slot=progress-track]]:border-white/10 [&_[data-slot=progress-indicator]]:bg-gradient-to-r [&_[data-slot=progress-indicator]]:from-[#7000FF] [&_[data-slot=progress-indicator]]:via-[#B026FF] [&_[data-slot=progress-indicator]]:to-[#00E5FF]" />
               </div>
-              <Progress value={Math.min(renderProgress, 100)} className="[&_[data-slot=progress-track]]:h-3 [&_[data-slot=progress-track]]:bg-[#1a1a1a] [&_[data-slot=progress-track]]:border [&_[data-slot=progress-track]]:border-white/10 [&_[data-slot=progress-indicator]]:bg-gradient-to-r [&_[data-slot=progress-indicator]]:from-[#7000FF] [&_[data-slot=progress-indicator]]:via-[#B026FF] [&_[data-slot=progress-indicator]]:to-[#00E5FF]" />
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-[#aaa]">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-[#aaa]">
                 {renderError ? renderError : "You can keep this dialog open while the render is queued, encoded, and saved back to this clip."}
               </div>
               {!renderError && (
@@ -452,7 +454,7 @@ export default function ProjectProcessingPage() {
                   type="button"
                   onClick={() => void handleCancelRender()}
                   disabled={isCancelingRender}
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-bold text-[#ddd] transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-[#ddd] transition duration-300 hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-white/15 disabled:hover:bg-white/[0.04] disabled:hover:text-[#ddd]"
                 >
                   {isCancelingRender ? "Canceling..." : "Cancel Render"}
                 </button>
