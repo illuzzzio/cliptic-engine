@@ -123,19 +123,46 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Missing accountId" }, { status: 400 });
     }
 
-    // Delete from our DB
-    await db.delete(socialMediaAccounts)
-      .where(and(
+    // 1. Get the account from our DB to find the Zernio ID
+    const account = await db.query.socialMediaAccounts.findFirst({
+      where: and(
         eq(socialMediaAccounts.id, accountId),
         eq(socialMediaAccounts.userId, userId)
-      ));
+      )
+    });
 
-    // Note: To fully disconnect, we'd also hit Zernio API if they have a disconnect endpoint.
-    // e.g. await fetch(`https://zernio.com/api/v1/accounts/${zernioAccountId}`, { method: 'DELETE' ... })
+    if (!account) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    // 2. Disconnect from Zernio API
+    const apiKey = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY;
+    const metadata = account.metadata as any;
+    const zernioAccountId = metadata?._id;
+
+    if (zernioAccountId && apiKey) {
+      try {
+        const zernioRes = await fetch(`https://zernio.com/api/v1/accounts/${zernioAccountId}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${apiKey}` }
+        });
+        
+        if (!zernioRes.ok) {
+          console.warn("Failed to disconnect from Zernio API:", await zernioRes.text());
+          // We continue to delete from our DB anyway to keep the UI clean
+        }
+      } catch (e) {
+        console.error("Error calling Zernio DELETE:", e);
+      }
+    }
+
+    // 3. Delete from our local DB
+    await db.delete(socialMediaAccounts)
+      .where(eq(socialMediaAccounts.id, accountId));
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error disconnecting account:", error);
-    return NextResponse.json({ error: "Failed to disconnect account" }, { status: 500 });
+    return NextResponse.json({ error: `Failed to disconnect: ${error.message}` }, { status: 500 });
   }
 }
