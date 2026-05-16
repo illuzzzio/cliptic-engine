@@ -4,8 +4,7 @@ import { generatedShorts, projects, scheduledPosts, socialMediaAccounts } from "
 import { SHORTS_GENERATION_CONFIG } from "@/lib/config/shorts";
 import { aiArcjet, arcjetEnabled, estimateTokens } from "@/lib/arcjet";
 import { eq, sql } from "drizzle-orm";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { s3Client, GetObjectCommand, getSignedUrl } from "@/lib/s3";
 import { DeepgramClient } from "@deepgram/sdk";
 import { getRenderProgress, renderMediaOnLambda, type AwsRegion } from "@remotion/lambda-client";
 import {
@@ -13,14 +12,6 @@ import {
   DEFAULT_CAPTION_SIZE,
   DEFAULT_CAPTION_STYLE_KEY,
 } from "@/lib/config/caption-styles";
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
 
 type DeepgramWord = {
   word?: string;
@@ -254,40 +245,6 @@ function ensureMinimumMoments(moments: NormalizedShortMoment[], captions: Captio
     .slice(0, SHORTS_GENERATION_CONFIG.count);
 }
 
-async function ensureGeneratedShortsTable() {
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS "generated_shorts" (
-      "id" text PRIMARY KEY NOT NULL,
-      "project_id" text NOT NULL REFERENCES "projects"("id") ON DELETE cascade,
-      "user_id" text NOT NULL,
-      "title" text NOT NULL,
-      "start_time" double precision NOT NULL,
-      "end_time" double precision NOT NULL,
-      "duration" double precision NOT NULL,
-      "reason" text NOT NULL,
-      "seo_score" integer NOT NULL,
-      "captions" jsonb NOT NULL,
-      "caption_style_key" text DEFAULT 'highlight-first-word',
-      "caption_font_family" text DEFAULT 'Inter, sans-serif',
-      "caption_size" double precision DEFAULT 4.5,
-      "export_url" text,
-      "render_id" text,
-      "render_bucket_name" text,
-      "render_status" text DEFAULT 'idle',
-      "render_progress" double precision DEFAULT 0,
-      "render_error" text,
-      "order_index" integer NOT NULL,
-      "created_at" timestamp DEFAULT now() NOT NULL,
-      "updated_at" timestamp DEFAULT now() NOT NULL
-    )
-  `);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "export_url" text`);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_id" text`);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_bucket_name" text`);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_status" text DEFAULT 'idle'`);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_progress" double precision DEFAULT 0`);
-  await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_error" text`);
-}
 
 async function generateShortMomentsWithGemini(transcriptText: string, captions: Caption[], userId: string) {
   if (!process.env.GEMINI_API_KEY) {
@@ -329,7 +286,7 @@ async function generateShortMomentsWithGemini(transcriptText: string, captions: 
 
   if (arcjetEnabled) {
     const decision = await aiArcjet.protect(
-      new Request("https://cliptic-engine.local/inngest/generate-shorts", { method: "POST" }),
+      new Request(`${process.env.NEXT_PUBLIC_APP_URL || 'https://cliptic-engine.com'}/api/inngest`, { method: "POST" }),
       {
         userId,
         requested: estimateTokens(prompt),
@@ -511,7 +468,6 @@ export const processUploadedVideo = inngest.createFunction(
         }));
 
         if (rows.length > 0) {
-          await ensureGeneratedShortsTable();
           await db.delete(generatedShorts).where(eq(generatedShorts.projectId, projectId));
           await db.insert(generatedShorts).values(rows);
         }
@@ -603,7 +559,6 @@ export const renderShortClipVideo = inngest.createFunction(
 
     try {
       const { short, project, signedVideoUrl } = await step.run("load-short-and-source-video", async () => {
-        await ensureGeneratedShortsTable();
 
         const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
         if (!short) throw new Error("Short clip not found");

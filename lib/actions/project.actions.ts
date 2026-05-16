@@ -13,30 +13,6 @@ import {
   DEFAULT_CAPTION_STYLE_KEY,
 } from "@/lib/config/caption-styles";
 
-let ensuredCaptionColumnsPromise: Promise<void> | null = null;
-
-async function ensureGeneratedShortsCaptionColumns() {
-  if (!ensuredCaptionColumnsPromise) {
-    ensuredCaptionColumnsPromise = (async () => {
-      await db.execute(
-        sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "caption_style_key" text DEFAULT 'highlight-first-word'`
-      );
-      await db.execute(
-        sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "caption_font_family" text DEFAULT 'Inter, sans-serif'`
-      );
-      await db.execute(
-        sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "caption_size" double precision DEFAULT 4.5`
-      );
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "export_url" text`);
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_id" text`);
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_bucket_name" text`);
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_status" text DEFAULT 'idle'`);
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_progress" double precision DEFAULT 0`);
-      await db.execute(sql`ALTER TABLE "generated_shorts" ADD COLUMN IF NOT EXISTS "render_error" text`);
-    })();
-  }
-  await ensuredCaptionColumnsPromise;
-}
 
 function getRenderStatusLabel(status?: string | null) {
   switch (status) {
@@ -99,7 +75,6 @@ function getErrorMessage(error: unknown) {
 export async function getProjectStatus(projectId: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
-  await ensureGeneratedShortsCaptionColumns();
 
   const result = await db.select().from(projects).where(eq(projects.id, projectId));
   
@@ -158,7 +133,6 @@ export async function updateShortCaptionStyle(input: {
 }) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
-  await ensureGeneratedShortsCaptionColumns();
 
   const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, input.shortId));
   if (!short) throw new Error("Short clip not found");
@@ -197,7 +171,6 @@ export async function updateShortCaptionStyle(input: {
 export async function startShortClipDownload(shortId: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
-  await ensureGeneratedShortsCaptionColumns();
 
   const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
   if (!short) throw new Error("Short clip not found");
@@ -329,7 +302,6 @@ export async function startShortClipDownload(shortId: string) {
 export async function getShortClipRenderStatus(shortId: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
-  await ensureGeneratedShortsCaptionColumns();
 
   const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
   if (!short) throw new Error("Short clip not found");
@@ -385,7 +357,6 @@ export async function getShortClipRenderStatus(shortId: string) {
 export async function cancelShortClipRender(shortId: string) {
   const user = await currentUser();
   if (!user) throw new Error("Unauthorized");
-  await ensureGeneratedShortsCaptionColumns();
 
   const [short] = await db.select().from(generatedShorts).where(eq(generatedShorts.id, shortId));
   if (!short) throw new Error("Short clip not found");
