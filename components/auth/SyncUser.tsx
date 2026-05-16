@@ -33,7 +33,7 @@ export async function SyncUser() {
       SELECT id, plan, credits, last_renewal_at FROM "users" WHERE id = ${user.id} LIMIT 1
     `);
     
-    const dbUser = results.rows[0];
+    const dbUser = results.rows[0] as { id: string; plan: string; credits: number; last_renewal_at: string } | undefined;
 
     if (dbUser) {
       // 3. Monthly Renewal Check

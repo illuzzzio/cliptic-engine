@@ -93,6 +93,9 @@ const platforms: Platform[] = [
 
 export default function SocialConnectPage() {
   const [userPlan, setUserPlan] = useState<string>("free");
+  const [loadingPlatform, setLoadingPlatform] = useState<string | null>(null);
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
 
   const fetchAccounts = async () => {
     setIsLoadingAccounts(true);
