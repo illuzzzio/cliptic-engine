@@ -813,25 +813,35 @@ export const publishSocialPost = inngest.createFunction(
 
     // 1. Load the scheduled post details
     const post = await step.run("load-post-details", async () => {
-      const [p] = await db.select({
-        id: scheduledPosts.id,
-        scheduledDate: scheduledPosts.scheduledDate,
-        userId: scheduledPosts.userId,
-        metadata: scheduledPosts.metadata,
-        platform: socialMediaAccounts.platform,
-        accountName: socialMediaAccounts.accountName,
-        zernioAccountId: sql<string>`${socialMediaAccounts.metadata}->>'_id'`,
-        exportUrl: generatedShorts.exportUrl,
-        shortTitle: generatedShorts.title,
-      })
-      .from(scheduledPosts)
-      .leftJoin(socialMediaAccounts, eq(scheduledPosts.socialAccountId, socialMediaAccounts.id))
-      .leftJoin(generatedShorts, eq(scheduledPosts.shortId, generatedShorts.id))
-      .where(eq(scheduledPosts.id, scheduledPostId));
-
+      const result = await db.execute(sql`
+        SELECT 
+          sp.id, 
+          sp.scheduled_date as "scheduledDate", 
+          sp.user_id as "userId", 
+          sp.metadata,
+          sp.status,
+          sma.platform,
+          sma.account_name as "accountName",
+          sma.metadata->>'_id' as "zernioAccountId",
+          gs.title as "shortTitle",
+          gs.export_url as "exportUrl"
+        FROM "scheduled_posts" sp
+        LEFT JOIN "social_media_accounts" sma ON sp.social_account_id = sma.id
+        LEFT JOIN "generated_shorts" gs ON sp.short_id = gs.id
+        WHERE sp.id = ${scheduledPostId}
+        LIMIT 1
+      `);
+      
+      const p = result.rows[0] as any;
       if (!p) throw new Error("Post not found");
       return p;
     });
+
+    // 1.5. Prevent duplicate processing
+    if (post.status === "completed" || post.status === "posting") {
+      console.log(`Post ${scheduledPostId} is already ${post.status}. Skipping.`);
+      return { skipped: true, reason: post.status };
+    }
 
     // 2. Wait until the scheduled date
     const waitTime = new Date(post.scheduledDate).getTime() - Date.now();
@@ -841,9 +851,11 @@ export const publishSocialPost = inngest.createFunction(
 
     // 3. Mark as posting
     await step.run("mark-as-posting", async () => {
-      await db.update(scheduledPosts)
-        .set({ status: "posting", updatedAt: new Date() })
-        .where(eq(scheduledPosts.id, scheduledPostId));
+      await db.execute(sql`
+        UPDATE "scheduled_posts" 
+        SET "status" = 'posting', "updated_at" = now() 
+        WHERE "id" = ${scheduledPostId}
+      `);
     });
 
     // 4. Call Zernio API to publish
@@ -862,10 +874,20 @@ export const publishSocialPost = inngest.createFunction(
             "Authorization": `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            accountId: post.zernioAccountId,
+            publishNow: true,
             content: caption,
-            mediaUrls: [post.exportUrl],
-            // Add any platform specific options here
+            mediaItems: [
+              {
+                type: "video",
+                url: post.exportUrl
+              }
+            ],
+            platforms: [
+              {
+                platform: post.platform,
+                accountId: post.zernioAccountId
+              }
+            ]
           })
         });
 
@@ -874,31 +896,37 @@ export const publishSocialPost = inngest.createFunction(
           throw new Error(`Zernio publishing failed: ${errorText}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log("ZERNIO PUBLISH RESULT:", JSON.stringify(data, null, 2));
+        return data;
       });
 
-      // 5. Update status to completed
+      // 5. Update status to completed (Only if not already done by another instance)
       await step.run("finalize-post", async () => {
-        await db.update(scheduledPosts)
-          .set({ 
-            status: "completed", 
-            postedAt: new Date(),
-            postUrl: result.postUrl || result.url || null,
-            updatedAt: new Date() 
-          })
-          .where(eq(scheduledPosts.id, scheduledPostId));
+        const check = await db.execute(sql`SELECT status FROM "scheduled_posts" WHERE id = ${scheduledPostId}`);
+        if (check.rows[0]?.status === "completed") return;
+
+        const pUrl = result.postUrl || result.url || result.post?.url || null;
+        await db.execute(sql`
+          UPDATE "scheduled_posts" 
+          SET "status" = 'completed', 
+              "posted_at" = now(),
+              "post_url" = ${pUrl},
+              "updated_at" = now() 
+          WHERE "id" = ${scheduledPostId}
+        `);
       });
 
       return { success: true, postId: result.postId || result.id };
     } catch (error: any) {
       await step.run("mark-as-failed", async () => {
-        await db.update(scheduledPosts)
-          .set({ 
-            status: "failed", 
-            errorMessage: error.message || "Unknown publishing error",
-            updatedAt: new Date() 
-          })
-          .where(eq(scheduledPosts.id, scheduledPostId));
+        await db.execute(sql`
+          UPDATE "scheduled_posts" 
+          SET "status" = 'failed', 
+              "error_message" = ${error.message || "Unknown publishing error"},
+              "updated_at" = now() 
+          WHERE "id" = ${scheduledPostId}
+        `);
       });
       throw error;
     }

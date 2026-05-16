@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function SyncUser() {
   try {
@@ -13,39 +13,50 @@ export async function SyncUser() {
 
     const email = user.emailAddresses[0]?.emailAddress || user.primaryEmailAddressId || `user_${user.id}@cliptic.internal`;
 
-    // 1. Check if user exists using standard select for better compatibility
-    const results = await db.select()
-      .from(users)
-      .where(eq(users.id, user.id))
-      .limit(1);
-      
-    const existingUser = results[0];
+    // 1. Ensure table exists (as a safety measure)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "users" (
+        "id" text PRIMARY KEY NOT NULL,
+        "email" text NOT NULL UNIQUE,
+        "first_name" text,
+        "last_name" text,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )
+    `);
 
-    if (existingUser) {
-      // 2. Update existing user
-      await db.update(users)
-        .set({
-          firstName: user.firstName ?? "",
-          lastName: user.lastName ?? "",
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, user.id));
+    // 2. Simple raw select
+    const results = await db.execute(sql`
+      SELECT id FROM "users" WHERE id = ${user.id} LIMIT 1
+    `);
+    
+    const exists = results.rows.length > 0;
+
+    if (exists) {
+      // 3. Simple raw update
+      await db.execute(sql`
+        UPDATE "users" 
+        SET "first_name" = ${user.firstName ?? ""}, 
+            "last_name" = ${user.lastName ?? ""}, 
+            "updated_at" = now()
+        WHERE "id" = ${user.id}
+      `);
     } else {
-      // 3. Insert new user safely
-      await db.insert(users).values({
-        id: user.id,
-        email: email,
-        firstName: user.firstName ?? "",
-        lastName: user.lastName ?? "",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).onConflictDoNothing();
+      // 4. Simple raw insert
+      await db.execute(sql`
+        INSERT INTO "users" ("id", "email", "first_name", "last_name", "created_at", "updated_at")
+        VALUES (${user.id}, ${email}, ${user.firstName ?? ""}, ${user.lastName ?? ""}, now(), now())
+        ON CONFLICT ("id") DO NOTHING
+      `);
     }
   } catch (error: any) {
-    console.error("Critical: Failed to sync user to database.");
-    console.error("Error details:", error);
-    if (error.stack) console.error("Stack trace:", error.stack);
+    console.error("CRITICAL ERROR: SyncUser failed.");
+    console.error("Message:", error.message);
+    // Don't stringify the whole error as it might be circular
+    console.error("Stack Trace:", error.stack);
   }
 
   return null;
 }
+
+

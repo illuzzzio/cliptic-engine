@@ -76,17 +76,20 @@ export async function schedulePost(data: {
     });
 
     // Send to Inngest to handle background waiting and posting
+    // Use the post ID as the event ID to prevent duplicate triggering
     await inngest.send({
       name: "social.post.publish",
       data: {
         scheduledPostId: id,
         userId: user.id,
       },
+      id: id, // Deduplication key
     });
 
     results.push(id);
   }
 
+  revalidatePath("/dashboard/schedule");
   return { ids: results };
 }
 
@@ -104,6 +107,34 @@ export async function cancelScheduledPost(scheduledPostId: string) {
   // Delete from DB
   await db.delete(scheduledPosts).where(eq(scheduledPosts.id, scheduledPostId));
   
+  revalidatePath("/dashboard/schedule");
+  return { success: true };
+}
+
+export async function publishNow(scheduledPostId: string) {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const [post] = await db.select().from(scheduledPosts).where(eq(scheduledPosts.id, scheduledPostId));
+  if (!post) throw new Error("Post not found");
+  if (post.userId !== user.id) throw new Error("Unauthorized");
+
+  // Update date to now so Inngest doesn't sleep
+  await db.update(scheduledPosts)
+    .set({ scheduledDate: new Date(), updatedAt: new Date() })
+    .where(eq(scheduledPosts.id, scheduledPostId));
+
+  // Trigger Inngest immediately
+  // Use the same ID to override any pending/sleeping instances
+  await inngest.send({
+    name: "social.post.publish",
+    data: {
+      scheduledPostId,
+      userId: user.id,
+    },
+    id: `now-${scheduledPostId}`, // Different ID to ensure it triggers even if previous one is sleeping
+  });
+
   revalidatePath("/dashboard/schedule");
   return { success: true };
 }

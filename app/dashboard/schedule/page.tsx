@@ -141,6 +141,12 @@ export default function SchedulePage() {
     setIsSubmitting(true);
     try {
       let [hours, minutes] = time.split(":").map(Number);
+      if (isNaN(hours) || isNaN(minutes)) {
+        toast.error("Invalid time format. Use HH:MM");
+        setIsSubmitting(false);
+        return;
+      }
+
       if (ampm === "PM" && hours < 12) hours += 12;
       if (ampm === "AM" && hours === 12) hours = 0;
 
@@ -410,9 +416,10 @@ export default function SchedulePage() {
                     <div className="relative w-[120px]">
                       <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B6B6B]" size={14} />
                       <Input 
-                        type="time" 
+                        type="text" 
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
+                        placeholder="12:00"
                         className="pl-8 bg-[#111111] border-[#2a2a2a] h-11 rounded-xl text-xs w-full"
                       />
                     </div>
@@ -505,17 +512,25 @@ export default function SchedulePage() {
                  </div>
               </div>
 
-              {(activePost.status === 'scheduled' || activePost.status === 'failed') && (
-                <div className="pt-4">
-                  <Button 
-                    variant="destructive" 
-                    className="w-full font-black uppercase tracking-[0.2em] py-8 rounded-2xl shadow-2xl shadow-red-500/20 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-600 hover:text-white transition-all duration-300 h-14"
-                    onClick={() => handleCancelPost(activePost.id)}
-                  >
-                    {activePost.status === 'failed' ? 'Clear & Retry' : 'Delete Schedule'}
-                  </Button>
+               <div className="pt-4">
+                  {activePost.status === 'completed' ? (
+                    <Button 
+                      variant="outline" 
+                      className="w-full font-black uppercase tracking-widest py-6 rounded-2xl bg-white/5 border border-white/10 text-[#6B6B6B] hover:bg-white/10 hover:text-white transition-all duration-300 h-14"
+                      onClick={() => handleCancelPost(activePost.id)}
+                    >
+                      Delete History
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="destructive" 
+                      className="w-full font-black uppercase tracking-widest py-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-600 hover:text-white transition-all duration-300 h-14"
+                      onClick={() => handleCancelPost(activePost.id)}
+                    >
+                      {activePost.status === 'failed' ? 'Clear & Retry' : 'Cancel Schedule'}
+                    </Button>
+                  )}
                 </div>
-              )}
             </div>
           )}
         </DialogContent>
