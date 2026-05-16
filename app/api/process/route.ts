@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
 import { inngest } from "@/lib/inngest/client";
+import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { users, projects } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { projects, users } from "@/lib/db/schema";
 import { aiArcjet, arcjetDeniedResponse, arcjetEnabled, estimateTokens } from "@/lib/arcjet";
+import { eq } from "drizzle-orm";
 
-// Force Node.js runtime and dynamic rendering for Clerk & DB
+// Force Node.js runtime and dynamic route
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -16,14 +16,14 @@ function getErrorMessage(error: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
-    // ✅ 1. Get current user
+    // 1️⃣ Clerk user fetch
     const user = await currentUser();
     if (!user) {
       console.error("Clerk: SyncUser failed - user not found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ 2. Parse request safely
+    // 2️⃣ Parse JSON safely
     let body;
     try {
       body = await req.json();
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing processing metadata" }, { status: 400 });
     }
 
-    // ✅ 3. Fetch user from DB
+    // 3️⃣ Fetch DB user
     const [dbUser] = await db.select().from(users).where(eq(users.id, user.id));
     if (!dbUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const userCredits = dbUser.credits ?? 0;
     const hasInsufficientCredits = userCredits < CREDIT_COST && dbUser.plan !== "cliptic_pro";
 
-    // ✅ 4. Arcjet Protection
+    // 4️⃣ Arcjet & trial protection
     if (arcjetEnabled) {
       if (isFreePlan && hasInsufficientCredits) {
         return NextResponse.json(
@@ -79,12 +79,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ 5. Fetch project
+    // 5️⃣ Fetch project and check ownership
     const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (project.userId !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // ✅ 6. Deduct credits unless Pro
+    // 6️⃣ Deduct credits if not Pro
     if (dbUser.plan !== "cliptic_pro") {
       await db.update(users)
         .set({
@@ -94,24 +94,29 @@ export async function POST(req: NextRequest) {
         .where(eq(users.id, user.id));
     }
 
-    // ✅ 7. Update project status
+    // 7️⃣ Update project status to "queued", but leave progress 0 for now
     await db.update(projects)
       .set({
         status: "queued",
-        progress: "5",
+        progress: "0", // start at 0%
         videoKey: s3Key,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
 
-    // ✅ 8. Trigger Inngest event
+    // 8️⃣ Trigger Inngest asynchronously
     try {
       await inngest.send({
         name: "video.process",
         data: { projectId, s3Key, fileName, userId: user.id },
       });
+      // Optionally, update progress to 5% immediately after trigger success
+      await db.update(projects)
+        .set({ progress: "5", updatedAt: new Date() })
+        .where(eq(projects.id, projectId));
     } catch (err) {
-      console.error("Inngest event send failed:", err);
+      console.error("Inngest trigger failed:", err);
+      // Do NOT fail the API, just log
     }
 
     return NextResponse.json({
