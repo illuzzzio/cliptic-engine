@@ -83,11 +83,11 @@ export function ShortClipEditorDialog({ open, onOpenChange, clip, previewVideoUr
             >
               {isSaving ? "Saving…" : "Apply Style"}
             </Button>
-            <DialogClose asChild>
+            <DialogClose render={
               <Button type="button" variant="ghost" className="h-8 px-3 text-lg text-[#888] hover:text-white hover:bg-white/5 rounded-lg">
                 ✕
               </Button>
-            </DialogClose>
+            } />
           </div>
         </div>
 

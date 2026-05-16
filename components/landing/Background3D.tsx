@@ -64,8 +64,8 @@ function InteractiveStars() {
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial vertexColors size={0.08} transparent opacity={0.8} sizeAttenuation={true} />
     </points>
@@ -87,7 +87,8 @@ function ShootingStars() {
   }, []);
 
   useFrame((state, delta) => {
-    if (linesRef.current) {
+    const currentLines = linesRef.current;
+    if (currentLines) {
       stars.forEach((star, i) => {
         if (!star.active) {
           star.delay -= delta;
@@ -108,7 +109,7 @@ function ShootingStars() {
           }
         }
         
-        const line = linesRef.current.children[i] as THREE.Mesh;
+        const line = currentLines.children[i] as THREE.Mesh;
         if (line) {
           line.position.set(star.x, star.y, star.z);
           line.visible = star.active;

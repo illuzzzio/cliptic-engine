@@ -131,8 +131,8 @@ export function Feedback() {
                     key={`${fb.id}-${i}`} 
                     className="group relative bg-[#111111] border border-[#2a2a2a] p-5 rounded-2xl transition-all duration-500 hover:border-[#B026FF]/40 hover:shadow-[0_0_30px_rgba(176,38,255,0.1)] overflow-hidden"
                   >
-                    {/* Shine Effect Overlay */}
-                    <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-20deg] pointer-events-none" />
+                    {/* Static Shine Effect Overlay */}
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-20deg] animate-[static-shine_3s_ease-in-out_infinite]" />
                     
                     <div className="flex items-center justify-between mb-3 relative z-10">
                       <div className="flex items-center gap-3">
@@ -178,6 +178,11 @@ export function Feedback() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #B026FF50;
+        }
+        @keyframes static-shine {
+          0% { transform: translateX(-150%) skewX(-20deg); }
+          50% { transform: translateX(150%) skewX(-20deg); }
+          100% { transform: translateX(150%) skewX(-20deg); }
         }
       `}</style>
     </section>

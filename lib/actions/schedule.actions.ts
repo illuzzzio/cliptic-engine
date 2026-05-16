@@ -192,3 +192,34 @@ export async function generateAIContent(shortId: string, userTitle?: string) {
     };
   }
 }
+
+export async function getExportedVideos() {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const results = await db.select({
+    id: generatedShorts.id,
+    title: generatedShorts.title,
+    duration: generatedShorts.duration,
+    seoScore: generatedShorts.seoScore,
+    exportUrl: generatedShorts.exportUrl,
+    renderStatus: generatedShorts.renderStatus,
+  })
+  .from(generatedShorts)
+  .where(
+    and(
+      eq(generatedShorts.userId, user.id),
+      eq(generatedShorts.renderStatus, "completed")
+    )
+  );
+
+  return results as any[];
+}
+
+export async function getSocialAccounts() {
+  const user = await currentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const results = await db.select().from(socialMediaAccounts).where(eq(socialMediaAccounts.userId, user.id));
+  return results as any[];
+}

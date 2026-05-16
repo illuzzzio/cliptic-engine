@@ -64,7 +64,7 @@ export function SchedulePostDialog({ open, onOpenChange, selectedDate }: Props) 
     try {
       await schedulePost({
         shortId: selectedVideo.id,
-        socialAccountId: selectedAccount.id,
+        socialAccountIds: [selectedAccount.id],
         scheduledDate: selectedDate,
       });
 

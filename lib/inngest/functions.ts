@@ -669,7 +669,7 @@ export const renderShortClipVideo = inngest.createFunction(
           audioCodec: "aac",
           muted: false,
           outName: `short-renders/${short.id}-${Date.now()}.mp4`,
-          timeoutInSeconds: SHORTS_GENERATION_CONFIG.remotionLambdaTimeoutSeconds,
+          timeoutInMilliseconds: SHORTS_GENERATION_CONFIG.remotionLambdaTimeoutSeconds * 1000,
           inputProps: {
             videoUrl: signedVideoUrl,
             clip: {

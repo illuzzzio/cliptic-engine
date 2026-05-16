@@ -16,7 +16,7 @@ export function CreditsDisplay() {
         const data = await getUserCredits();
         if (data) {
           setCredits(data.credits);
-          setPlan(data.plan);
+          setPlan(data.plan ?? "free");
         }
       } catch (err) {
         console.error("Failed to fetch credits:", err);

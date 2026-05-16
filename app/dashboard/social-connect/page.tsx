@@ -119,7 +119,7 @@ export default function SocialConnectPage() {
 
   const fetchUserPlan = async () => {
     const data = await getUserCredits();
-    if (data) setUserPlan(data.plan);
+    if (data) setUserPlan(data.plan ?? "free");
   };
 
   useEffect(() => {

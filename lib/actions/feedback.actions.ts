@@ -41,7 +41,7 @@ export async function submitFeedback(rating: number, comment: string) {
 export async function getTopFeedbacks() {
   const data = await db.select()
     .from(feedbacks)
-    .where(gte(feedbacks.rating, 4))
+    .where(eq(feedbacks.rating, 5))
     .orderBy(desc(feedbacks.createdAt))
     .limit(30);
 
