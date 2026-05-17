@@ -15,7 +15,9 @@ function getErrorMessage(error: unknown) {
 }
 
 function isInngestConfigured() {
-  if (process.env.INNGEST_DEV === "1") return true;
+  if (process.env.NODE_ENV !== "production" && process.env.INNGEST_DEV === "1") {
+    return true;
+  }
 
   return Boolean(
     process.env.INNGEST_EVENT_KEY?.trim() &&
@@ -107,7 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "Inngest is not configured",
-          details: "Set INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY in production, or INNGEST_DEV=1 locally.",
+          details: "Set INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY in production. Use INNGEST_DEV=1 only for local development.",
         },
         { status: 500 }
       );
