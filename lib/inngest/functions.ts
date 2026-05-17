@@ -398,61 +398,36 @@ export const processUploadedVideo = inngest.createFunction(
           throw new Error("DEEPGRAM_API_KEY is not set in environment variables");
         }
 
-        console.log("🎙️ Starting Deepgram transcription for video:", { projectId, s3Key });
-        const deepgramTimeoutMs = 300000; // 5 minutes timeout for Deepgram
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), deepgramTimeoutMs);
+        const deepgram = new DeepgramClient({ apiKey: process.env.DEEPGRAM_API_KEY });
+        const response = await deepgram.listen.v1.media.transcribeUrl({
+          url: signedUrl,
+          model: "nova-3",
+          language: "en",
+          smart_format: true,
+          punctuate: true,
+          utterances: true,
+        }) as DeepgramTranscriptionResponse;
 
-        try {
-          const deepgram = new DeepgramClient({ apiKey: process.env.DEEPGRAM_API_KEY });
-          console.log("📞 Calling Deepgram API with signed URL (expires in 7 days)...");
-          
-          const response = await Promise.race([
-            deepgram.listen.v1.media.transcribeUrl({
-              url: signedUrl,
-              model: "nova-3",
-              language: "en",
-              smart_format: true,
-              punctuate: true,
-              utterances: true,
-            }) as Promise<DeepgramTranscriptionResponse>,
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Deepgram transcription timeout after 5 minutes")), deepgramTimeoutMs)
-            ),
-          ]) as DeepgramTranscriptionResponse;
+        const alternative = response.results?.channels?.[0]?.alternatives?.[0];
+        const transcriptText = alternative?.transcript?.trim() || "";
+        const words = (alternative?.words || []) as DeepgramWord[];
 
-          const alternative = response.results?.channels?.[0]?.alternatives?.[0];
-          const transcriptText = alternative?.transcript?.trim() || "";
-          const words = (alternative?.words || []) as DeepgramWord[];
-          console.log("✅ Deepgram transcription completed:", { wordCount: words.length, duration: getVideoDuration(words as unknown as Caption[]) });
-
-          if (!transcriptText || words.length === 0) {
-            console.warn("⚠️ No speech detected in video");
-            return {
-              transcriptText: "",
-              captions: [],
-              noAudioMessage: "No speech was detected in this video, so captions were not generated.",
-            };
-          }
-
-          const captions: Caption[] = words.map((word) => ({
-            text: word.punctuated_word || word.word || "",
-            start: word.start,
-            end: word.end,
-            confidence: word.confidence,
-          }));
-
-          return { transcriptText, captions, noAudioMessage: null };
-        } catch (error: unknown) {
-          if (error instanceof Error && error.message.includes("Deepgram transcription timeout")) {
-            console.error("❌ Deepgram transcription timed out after 5 minutes");
-            throw new Error("Deepgram transcription timed out after 5 minutes. The video may be too long or there may be a connectivity issue.");
-          }
-          console.error("❌ Deepgram transcription failed:", getErrorMessage(error));
-          throw error;
-        } finally {
-          clearTimeout(timeout);
+        if (!transcriptText || words.length === 0) {
+          return {
+            transcriptText: "",
+            captions: [],
+            noAudioMessage: "No speech was detected in this video, so captions were not generated.",
+          };
         }
+
+        const captions: Caption[] = words.map((word) => ({
+          text: word.punctuated_word || word.word || "",
+          start: word.start,
+          end: word.end,
+          confidence: word.confidence,
+        }));
+
+        return { transcriptText, captions, noAudioMessage: null };
       });
 
       await step.run("update-status-captions-generated", async () => {
