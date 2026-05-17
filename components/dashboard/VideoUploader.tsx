@@ -11,6 +11,17 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to start processing";
 }
 
+async function readApiResponse(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as { error?: string; details?: string; message?: string };
+  } catch {
+    return { details: text };
+  }
+}
+
 export function VideoUploader() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -339,10 +350,15 @@ export function VideoUploader() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ projectId: projectIdState, s3Key: s3KeyState, fileName: file.name }),
                       });
-                      const data = await res.json();
+                      const data = await readApiResponse(res);
 
                       if (!res.ok) {
-                        throw new Error(data.details || data.error || "Failed to start processing");
+                        const message = data?.details || data?.error || data?.message || "Failed to start processing";
+                        console.error("Failed to queue video processing", {
+                          status: res.status,
+                          message,
+                        });
+                        throw new Error(`${message} (HTTP ${res.status})`);
                       }
 
                       router.push(`/dashboard/project/${projectIdState}`);

@@ -96,15 +96,6 @@ export async function POST(req: NextRequest) {
     if (project.userId !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // 6️⃣ Deduct credits if not Pro
-    if (dbUser.plan !== "cliptic_pro") {
-      await db.update(users)
-        .set({
-          credits: Math.max(0, (dbUser.credits ?? 0) - CREDIT_COST),
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, user.id));
-    }
-
     if (!isInngestConfigured()) {
       return NextResponse.json(
         {
@@ -148,6 +139,15 @@ export async function POST(req: NextRequest) {
         { error: "Failed to queue video processing", details: message },
         { status: 502 }
       );
+    }
+
+    if (dbUser.plan !== "cliptic_pro") {
+      await db.update(users)
+        .set({
+          credits: Math.max(0, (dbUser.credits ?? 0) - CREDIT_COST),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
     }
 
     return NextResponse.json({
