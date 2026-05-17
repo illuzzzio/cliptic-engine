@@ -94,15 +94,16 @@ export async function POST(req: NextRequest) {
         .where(eq(users.id, user.id));
     }
 
-    // 7️⃣ Update project status to "queued", but leave progress 0 for now
+    // 7️⃣ Update project status to "queued" and progress to 5% immediately (before Inngest)
     await db.update(projects)
       .set({
         status: "queued",
-        progress: "0", // start at 0%
+        progress: "5", // Start at 5% immediately to show user something is happening
         videoKey: s3Key,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+    console.log("📊 Project initialized with status=queued, progress=5%", { projectId });
 
     // 8️⃣ Trigger Inngest asynchronously
     try {
@@ -111,14 +112,17 @@ export async function POST(req: NextRequest) {
         data: { projectId, s3Key, fileName, userId: user.id },
       });
       console.log("✅ Inngest job triggered successfully:", { projectId, eventId: result.ids?.[0] });
-      
-      // Optionally, update progress to 5% immediately after trigger success
-      await db.update(projects)
-        .set({ progress: "5", updatedAt: new Date() })
-        .where(eq(projects.id, projectId));
     } catch (err) {
       console.error("❌ Inngest trigger failed:", { projectId, error: getErrorMessage(err) });
-      // Do NOT fail the API, just log
+      // Update to error state since we couldn't queue the job
+      await db.update(projects)
+        .set({
+          status: "failed",
+          progress: "100",
+          transcript: `Failed to queue video processing: ${getErrorMessage(err)}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, projectId));
     }
 
     return NextResponse.json({
