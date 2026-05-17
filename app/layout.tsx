@@ -5,25 +5,16 @@ import { cn } from "@/lib/utils";
 import { ClerkProvider } from '@clerk/nextjs';
 import { SyncUser } from "@/components/auth/SyncUser";
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-  preload: true,
-});
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: 'swap',
-  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-  display: 'swap',
-  preload: false, // Only preload if needed, load lazily otherwise
 });
 
 export const metadata: Metadata = {
