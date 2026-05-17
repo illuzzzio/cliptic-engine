@@ -14,6 +14,15 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function isInngestConfigured() {
+  if (process.env.INNGEST_DEV === "1") return true;
+
+  return Boolean(
+    process.env.INNGEST_EVENT_KEY?.trim() &&
+      process.env.INNGEST_SIGNING_KEY?.trim()
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     // 1️⃣ Clerk user fetch
@@ -94,11 +103,21 @@ export async function POST(req: NextRequest) {
         .where(eq(users.id, user.id));
     }
 
+    if (!isInngestConfigured()) {
+      return NextResponse.json(
+        {
+          error: "Inngest is not configured",
+          details: "Set INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY in production, or INNGEST_DEV=1 locally.",
+        },
+        { status: 500 }
+      );
+    }
+
     // 7️⃣ Update project status to "queued", but leave progress 0 for now
     await db.update(projects)
       .set({
         status: "queued",
-        progress: "0", // start at 0%
+        progress: "5",
         videoKey: s3Key,
         updatedAt: new Date(),
       })
@@ -110,13 +129,23 @@ export async function POST(req: NextRequest) {
         name: "video.process",
         data: { projectId, s3Key, fileName, userId: user.id },
       });
-      // Optionally, update progress to 5% immediately after trigger success
-      await db.update(projects)
-        .set({ progress: "5", updatedAt: new Date() })
-        .where(eq(projects.id, projectId));
     } catch (err) {
-      console.error("Inngest trigger failed:", err);
-      // Do NOT fail the API, just log
+      const message = getErrorMessage(err);
+      console.error("Inngest trigger failed:", { projectId, error: message });
+
+      await db.update(projects)
+        .set({
+          status: "failed",
+          progress: "100",
+          transcript: `Failed to queue video processing: ${message}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, projectId));
+
+      return NextResponse.json(
+        { error: "Failed to queue video processing", details: message },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({
