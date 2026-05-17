@@ -106,16 +106,18 @@ export async function POST(req: NextRequest) {
 
     // 8️⃣ Trigger Inngest asynchronously
     try {
-      await inngest.send({
+      const result = await inngest.send({
         name: "video.process",
         data: { projectId, s3Key, fileName, userId: user.id },
       });
+      console.log("✅ Inngest job triggered successfully:", { projectId, eventId: result.ids?.[0] });
+      
       // Optionally, update progress to 5% immediately after trigger success
       await db.update(projects)
         .set({ progress: "5", updatedAt: new Date() })
         .where(eq(projects.id, projectId));
     } catch (err) {
-      console.error("Inngest trigger failed:", err);
+      console.error("❌ Inngest trigger failed:", { projectId, error: getErrorMessage(err) });
       // Do NOT fail the API, just log
     }
 
