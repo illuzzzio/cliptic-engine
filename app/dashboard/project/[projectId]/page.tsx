@@ -50,54 +50,21 @@ export default function ProjectProcessingPage() {
   useEffect(() => {
     if (!projectId) return;
 
-    const POLL_INTERVAL = 2000; // 2 seconds
-    const MAX_POLLING_TIME = 15 * 60 * 1000; // 15 minutes - prevent infinite polling
-    const startTime = Date.now();
-    let lastStatus = "";
-
     const interval = setInterval(async () => {
-      const elapsed = Date.now() - startTime;
-      
-      // Stop polling after 15 minutes if still not completed
-      if (elapsed > MAX_POLLING_TIME && lastStatus && !["completed", "failed"].includes(lastStatus)) {
-        clearInterval(interval);
-        setError("Processing is taking too long. This usually means the Inngest worker isn't running. Please check the logs.");
-        return;
-      }
-
       try {
         const data = await getProjectStatus(projectId);
-        lastStatus = data.status;
-        
-        // Ensure progress is a number
-        const numericProgress = typeof data.progress === 'number' ? data.progress : parseInt(String(data.progress || 0), 10);
-        if (numericProgress !== data.progress) {
-          data.progress = numericProgress;
-        }
-
         setProject(data);
-        setError(null); // Clear errors when polling succeeds
 
         if (data.status === "completed" || data.status === "failed") {
           clearInterval(interval);
         }
       } catch (err: unknown) {
-        console.error("Polling error:", err);
         setError(getErrorMessage(err));
-        // Don't clear interval on temporary polling error - could be network blip
       }
-    }, POLL_INTERVAL);
+    }, 2000);
 
     // Initial fetch
-    getProjectStatus(projectId)
-      .then((data) => {
-        lastStatus = data.status;
-        const numericProgress = typeof data.progress === 'number' ? data.progress : parseInt(String(data.progress || 0), 10);
-        data.progress = numericProgress;
-        setProject(data);
-        setError(null);
-      })
-      .catch((err: unknown) => setError(getErrorMessage(err)));
+    getProjectStatus(projectId).then(setProject).catch((err: unknown) => setError(getErrorMessage(err)));
 
     return () => clearInterval(interval);
   }, [projectId]);
@@ -218,20 +185,7 @@ export default function ProjectProcessingPage() {
   }, [renderDialogOpen, renderingShortId, renderError, syncShortRenderState]);
 
   if (error) {
-    return (
-      <div className="w-full max-w-7xl mx-auto py-10 px-6">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-8">
-          <h2 className="text-2xl font-black text-red-400 mb-2">Processing Error</h2>
-          <p className="text-red-300 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+    return <div className="p-8 text-red-500">Error: {error}</div>;
   }
 
   if (!project) {
@@ -282,34 +236,20 @@ export default function ProjectProcessingPage() {
           <>
         <div className="my-10">
           <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#6B6B6B]">
-            <span>{project.status?.replace(/_/g, " ") || "processing"}</span>
-            <span className="text-[#00E5FF]">{Math.max(0, Math.min(100, project.progress || 0))}%</span>
+            <span>{project.status?.replace("_", " ") || "processing"}</span>
+            <span className="text-[#00E5FF]">{project.progress || 0}%</span>
           </div>
           <div className="h-3 overflow-hidden rounded-full border border-[#2a2a2a] bg-[#1a1a1a]">
             <div
               className="h-full bg-gradient-to-r from-[#7000FF] via-[#B026FF] to-[#00E5FF] transition-all duration-500"
-              style={{ width: `${Math.max(0, Math.min(100, project.progress || 0))}%` }}
+              style={{ width: `${Math.min(project.progress || 0, 100)}%` }}
             />
           </div>
-          {project.progress < 100 && project.status !== "completed" && (
-            <p className="text-xs text-[#6B6B6B] mt-2">
-              This can take a few minutes. Inngest worker is processing your video...
-            </p>
-          )}
         </div>
 
         <div className="space-y-8 relative">
           {/* Connecting line */}
           <div className="absolute left-[28px] top-[40px] bottom-[40px] w-0.5 bg-[#2a2a2a] z-0" />
-
-          {/* Show debug info if stuck at early stage */}
-          {project.progress <= 5 && project.status !== "completed" && project.status !== "failed" && (
-            <div className="rounded-xl border border-[#B026FF]/30 bg-[#B026FF]/10 p-4 mb-4">
-              <p className="text-sm text-[#a0a0a0]">
-                <span className="text-[#B026FF] font-bold">ℹ️ Queued:</span> Your video is queued for processing. The Inngest worker will pick it up shortly and begin transcription.
-              </p>
-            </div>
-          )}
 
           {steps.map((step) => {
             const isActive = currentStep === step.id;
