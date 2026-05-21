@@ -3,6 +3,26 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
 
+type ZernioProfileResponse = {
+  profileId?: string;
+  profile?: {
+    _id?: string;
+    id?: string;
+  };
+  data?: {
+    _id?: string;
+    id?: string;
+  };
+  _id?: string;
+  id?: string;
+  error?: string;
+  message?: string;
+};
+
+function getProfileId(data: ZernioProfileResponse) {
+  return data.profileId || data.profile?._id || data.profile?.id || data.data?._id || data.data?.id || data._id || data.id;
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -51,10 +71,12 @@ export async function POST(req: Request) {
       if (!createRes.ok) {
         const errorText = await createRes.text();
         console.error("Failed to create profile:", errorText);
-        // We will try to proceed without profileId just in case the endpoint doesn't strictly need it
+        return NextResponse.json({
+          error: `Failed to create Zernio profile before connecting: ${errorText}`
+        }, { status: createRes.status });
       } else {
-        const createData = await createRes.json();
-        profileId = createData.profileId || createData.profile?._id || createData.profile?.id || createData.data?._id || createData.data?.id || createData._id || createData.id;
+        const createData = await createRes.json() as ZernioProfileResponse;
+        profileId = getProfileId(createData) || null;
         if (profileId) {
           await db.execute(sql`
             INSERT INTO "zernio_user_profiles" ("user_id", "profile_id", "created_at", "updated_at")
@@ -66,16 +88,21 @@ export async function POST(req: Request) {
       }
     }
 
-    // If still no profileId, we'll try the request without it just in case Zernio allows a default profile fallback
+    if (!profileId) {
+      return NextResponse.json({
+        error: "Failed to create Zernio profile before connecting. Zernio did not return a profile id."
+      }, { status: 502 });
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const redirectUrl = `${baseUrl}/dashboard/social-connect`;
-    const encodedRedirectUrl = encodeURIComponent(redirectUrl);
-    const queryParam = profileId 
-      ? `?profileId=${encodeURIComponent(profileId)}&redirect_url=${encodedRedirectUrl}`
-      : `?redirect_url=${encodedRedirectUrl}`;
+    const query = new URLSearchParams({
+      profileId,
+      redirect_url: redirectUrl
+    });
 
     // Step 2: Get the connection URL for the specified platform
-    const connectRes = await fetch(`https://zernio.com/api/v1/connect/${platform}${queryParam}`, {
+    const connectRes = await fetch(`https://zernio.com/api/v1/connect/${platform}?${query.toString()}`, {
       method: "GET",
       headers: { "Authorization": `Bearer ${apiKey}` }
     });
