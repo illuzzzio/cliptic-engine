@@ -24,6 +24,13 @@ type Platform = {
   icon: IconType;
 };
 
+type ConnectedAccount = {
+  id: string;
+  platform: string;
+  accountName: string;
+  profilePic?: string | null;
+};
+
 const platforms: Platform[] = [
   {
     name: "Instagram",
@@ -94,19 +101,20 @@ const platforms: Platform[] = [
 export default function SocialConnectPage() {
   const [userPlan, setUserPlan] = useState<string>("free");
   const [loadingPlatform, setLoadingPlatform] = useState<string | null>(null);
-  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
 
   const fetchAccounts = async () => {
     setIsLoadingAccounts(true);
     try {
       console.log("Fetching accounts...");
-      const profileId = localStorage.getItem("zernioProfileId");
-      const url = profileId ? `/api/zernio/accounts?profileId=${profileId}` : "/api/zernio/accounts";
-      const res = await fetch(url);
+      const res = await fetch("/api/zernio/accounts");
       const data = await res.json();
       
       if (res.ok && data.accounts) {
+        if (data.profileId) {
+          localStorage.setItem("zernioProfileId", data.profileId);
+        }
         console.log("Found accounts:", data.accounts.length);
         setConnectedAccounts(data.accounts);
       }
@@ -127,13 +135,20 @@ export default function SocialConnectPage() {
     fetchUserPlan();
     
     // Check if we just returned from a connection flow
+    const timers: ReturnType<typeof setTimeout>[] = [];
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("connected") === "true") {
+      if (window.location.search || params.get("connected") === "true") {
+        timers.push(setTimeout(fetchAccounts, 2000));
+        timers.push(setTimeout(fetchAccounts, 6000));
         // Clean up URL without refreshing
         window.history.replaceState({}, document.title, "/dashboard/social-connect");
       }
     }
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, []);
 
   const handleDisconnect = async (accountId: string, platformKey: string) => {
@@ -163,12 +178,10 @@ export default function SocialConnectPage() {
     }
     setLoadingPlatform(platformKey);
     try {
-      const cachedProfileId = localStorage.getItem("zernioProfileId");
-      
       const res = await fetch("/api/zernio/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: platformKey, profileId: cachedProfileId }),
+        body: JSON.stringify({ platform: platformKey }),
       });
       const data = await res.json();
       

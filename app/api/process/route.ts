@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (project.userId !== user.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // 6️⃣ Deduct credits if not Pro
+    // 6️⃣ Make sure the queue is configured before charging credits.
     if (!isInngestConfigured()) {
       return NextResponse.json(
         {

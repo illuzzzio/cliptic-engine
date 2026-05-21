@@ -1,9 +1,48 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
-import { users, socialMediaAccounts } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { socialMediaAccounts } from "@/lib/db/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import crypto from "crypto";
+
+type ZernioAccount = {
+  _id?: string;
+  id?: string;
+  platform?: string;
+  username?: string;
+  handle?: string;
+  displayName?: string;
+  name?: string;
+  profilePicture?: string;
+  profilePicUrl?: string;
+  profile_image?: string;
+  profileId?: string | { _id?: string; id?: string };
+  profile_id?: string | { _id?: string; id?: string };
+  profile?: {
+    _id?: string;
+    id?: string;
+  };
+};
+
+type ZernioAccountsResponse = {
+  accounts?: ZernioAccount[];
+  data?: ZernioAccount[];
+  results?: ZernioAccount[];
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
+function getProfileId(value: ZernioAccount["profileId"]) {
+  if (!value) return undefined;
+  return typeof value === "string" ? value : value._id || value.id;
+}
+
+function hasMappedProfile(account: typeof socialMediaAccounts.$inferSelect) {
+  const metadata = account.metadata as { clipticProfileId?: string } | null;
+  return Boolean(metadata?.clipticProfileId);
+}
 
 export async function GET(req: Request) {
   try {
@@ -37,13 +76,42 @@ export async function GET(req: Request) {
     }
 
     const apiKey = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY;
+    const { searchParams } = new URL(req.url);
+    const requestedProfileId = searchParams.get("profileId");
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "zernio_user_profiles" (
+        "user_id" text PRIMARY KEY NOT NULL,
+        "profile_id" text NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      )
+    `);
+
+    const storedProfiles = await db.execute(sql`
+      SELECT profile_id FROM "zernio_user_profiles" WHERE user_id = ${userId} LIMIT 1
+    `);
+    const storedProfile = storedProfiles.rows[0] as { profile_id: string } | undefined;
+    const profileId = storedProfile?.profile_id || requestedProfileId;
+
+    if (!profileId) {
+      const allDbAccounts = await db.query.socialMediaAccounts.findMany({
+        where: eq(socialMediaAccounts.userId, userId)
+      });
+
+      return NextResponse.json({ success: true, accounts: allDbAccounts.filter(hasMappedProfile) });
+    }
+
+    if (requestedProfileId && storedProfile && storedProfile.profile_id !== requestedProfileId) {
+      return NextResponse.json({ success: true, accounts: [] });
+    }
 
     if (!apiKey) {
       return NextResponse.json({ error: "Zernio API key missing" }, { status: 400 });
     }
 
-    // 1. Fetch connected accounts from Zernio
-    const zernioRes = await fetch("https://zernio.com/api/v1/accounts", {
+    // 1. Fetch connected accounts from this user's Zernio profile only.
+    const zernioRes = await fetch(`https://zernio.com/api/v1/accounts?profileId=${encodeURIComponent(profileId)}&includeOverLimit=true`, {
       headers: { "Authorization": `Bearer ${apiKey}` }
     });
 
@@ -54,19 +122,27 @@ export async function GET(req: Request) {
     }
 
     const zernioData = await zernioRes.json();
-    console.log("Zernio Accounts Sync Logic - Response:", JSON.stringify(zernioData, null, 2));
-    const accounts = zernioData.accounts || [];
+    const zernioAccountsResponse = zernioData as ZernioAccountsResponse | ZernioAccount[];
+    const rawAccounts = Array.isArray(zernioAccountsResponse)
+      ? zernioAccountsResponse
+      : zernioAccountsResponse.accounts || zernioAccountsResponse.data || zernioAccountsResponse.results || [];
+    const accounts = rawAccounts.filter((acc) => {
+      const accountProfileId = getProfileId(acc.profileId) || getProfileId(acc.profile_id) || acc.profile?._id || acc.profile?.id;
+      return !accountProfileId || accountProfileId === profileId;
+    });
+    const syncedAccountIds: string[] = [];
 
     // 2. Sync with local database
     for (const acc of accounts) {
       const platform = acc.platform;
+      if (!platform) {
+        continue;
+      }
+
       const accountHandle = acc.username || acc.handle || acc._id || "unknown";
       const accountName = acc.displayName || acc.name || acc.username || platform;
       const profilePic = acc.profilePicture || acc.profilePicUrl || acc.profile_image;
 
-      console.log(`Syncing account: ${accountName} (${platform})`);
-
-      // Check if it exists
       const existing = await db.query.socialMediaAccounts.findFirst({
         where: and(
           eq(socialMediaAccounts.userId, userId),
@@ -77,34 +153,41 @@ export async function GET(req: Request) {
 
       if (!existing) {
         // Insert new account
+        const id = `acc_${crypto.randomUUID()}`;
         await db.insert(socialMediaAccounts).values({
-          id: `acc_${crypto.randomUUID()}`,
+          id,
           userId,
           platform,
           accountName,
           accountHandle,
           profilePic,
-          metadata: acc
+          metadata: { ...acc, clipticProfileId: profileId }
         });
+        syncedAccountIds.push(id);
       } else {
         // Update existing
         await db.update(socialMediaAccounts)
-          .set({ accountName, profilePic, metadata: acc, updatedAt: new Date() })
+          .set({ accountName, profilePic, metadata: { ...acc, clipticProfileId: profileId }, updatedAt: new Date() })
           .where(eq(socialMediaAccounts.id, existing.id));
+        syncedAccountIds.push(existing.id);
       }
     }
 
-    // Optionally: fetch all accounts for this user from DB to return
-    const allDbAccounts = await db.query.socialMediaAccounts.findMany({
-      where: eq(socialMediaAccounts.userId, userId)
-    });
+    const allDbAccounts = syncedAccountIds.length > 0
+      ? await db.query.socialMediaAccounts.findMany({
+          where: and(
+            eq(socialMediaAccounts.userId, userId),
+            inArray(socialMediaAccounts.id, syncedAccountIds)
+          )
+        })
+      : [];
 
-    return NextResponse.json({ success: true, accounts: allDbAccounts });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, profileId, accounts: allDbAccounts });
+  } catch (error: unknown) {
     console.error("Zernio Accounts Sync Error Details:", error);
     return NextResponse.json({ 
-      error: `Sync Error: ${error.message || "Unknown error"}`,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: `Sync Error: ${getErrorMessage(error)}`,
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
@@ -137,7 +220,7 @@ export async function DELETE(req: Request) {
 
     // 2. Disconnect from Zernio API
     const apiKey = process.env.ZERNIO_API_KEY || process.env.NEXT_PUBLIC_ZERNIO_API_KEY;
-    const metadata = account.metadata as any;
+    const metadata = account.metadata as ZernioAccount | null;
     const zernioAccountId = metadata?._id;
 
     if (zernioAccountId && apiKey) {
@@ -161,8 +244,8 @@ export async function DELETE(req: Request) {
       .where(eq(socialMediaAccounts.id, accountId));
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error disconnecting account:", error);
-    return NextResponse.json({ error: `Failed to disconnect: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Failed to disconnect: ${getErrorMessage(error)}` }, { status: 500 });
   }
 }

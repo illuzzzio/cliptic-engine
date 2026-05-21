@@ -1,0 +1,1 @@
+import { db } from './lib/db'; import { socialMediaAccounts } from './lib/db/schema'; async function run() { const accs = await db.select().from(socialMediaAccounts); console.log(JSON.stringify(accs, null, 2)); process.exit(0); } run();
