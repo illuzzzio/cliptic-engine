@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
@@ -23,7 +23,47 @@ function getProfileId(data: ZernioProfileResponse) {
   return data.profileId || data.profile?._id || data.profile?.id || data.data?._id || data.data?.id || data._id || data.id;
 }
 
-export async function POST(req: Request) {
+function normalizeBaseUrl(url: string) {
+  return url.replace(/\/+$/, "");
+}
+
+function getFirstHeaderValue(value: string | null) {
+  return value?.split(",")[0]?.trim() || null;
+}
+
+function isLocalHost(host: string) {
+  return ["localhost", "127.0.0.1", "0.0.0.0"].includes(host.split(":")[0]);
+}
+
+function parseConfiguredUrl(value: string | undefined) {
+  if (!value) return null;
+
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function getRequestBaseUrl(req: NextRequest) {
+  const configuredUrl = parseConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL);
+  const forwardedHost = getFirstHeaderValue(req.headers.get("x-forwarded-host"));
+  const forwardedProto = getFirstHeaderValue(req.headers.get("x-forwarded-proto"));
+  const host = forwardedHost || req.headers.get("host");
+
+  if (configuredUrl && (!host || !isLocalHost(configuredUrl.host) || isLocalHost(host))) {
+    return normalizeBaseUrl(configuredUrl.origin);
+  }
+
+  if (host) {
+    const proto = forwardedProto || req.nextUrl.protocol.replace(":", "") || "https";
+    return normalizeBaseUrl(`${proto}://${host}`);
+  }
+
+  return normalizeBaseUrl(req.nextUrl.origin);
+}
+
+export async function POST(req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -94,7 +134,7 @@ export async function POST(req: Request) {
       }, { status: 502 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = getRequestBaseUrl(req);
     const redirectUrl = `${baseUrl}/dashboard/social-connect`;
     const query = new URLSearchParams({
       profileId,
